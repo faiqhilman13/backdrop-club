@@ -1,0 +1,43 @@
+name: Submit a theme
+description: Add your backdrop to the Backdrop Club gallery
+title: "Theme: "
+labels: ["theme-submission"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sharing! The easiest way is the [Submit page](https://faiqhilman13.github.io/backdrop-club/submit/): it checks your theme and fills most of this in.
+        A bot checks the theme and opens a pull request within a minute or two. You are credited as the issue's author.
+  - type: input
+    id: name
+    attributes:
+      label: Theme name
+      placeholder: Harbour at dusk
+    validations:
+      required: true
+  - type: input
+    id: description
+    attributes:
+      label: One line about it
+      placeholder: Cranes and container ships under a pink sky.
+  - type: input
+    id: tags
+    attributes:
+      label: Tags
+      description: Up to five, separated by commas.
+      placeholder: city, sea, sunset
+  - type: textarea
+    id: svg
+    attributes:
+      label: Theme file
+      description: Paste the whole SVG here. The Submit page copies it for you.
+      render: xml
+    validations:
+      required: true
+  - type: checkboxes
+    id: rights
+    attributes:
+      label: Rights
+      options:
+        - label: I made this art, or have the right to share it, and I license it under CC BY 4.0.
+          required: true

@@ -1,0 +1,26 @@
+name: Theme submission
+on:
+  issues:
+    types: [opened, edited, labeled, reopened]
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+concurrency:
+  group: submission-${{ github.event.issue.number }}
+  cancel-in-progress: true
+jobs:
+  submit:
+    if: contains(github.event.issue.labels.*.name, 'theme-submission') && github.event.issue.state == 'open'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build the checking page
+        run: node tools/build.mjs
+      - name: Check the theme and open a pull request
+        run: node tools/submission.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}

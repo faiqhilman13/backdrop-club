@@ -1,0 +1,11 @@
+{
+  "title": "Backdrop Club",
+  "tagline": "Free backdrops for the Claude app",
+  "origin": "https://faiqhilman13.github.io",
+  "base": "/backdrop-club/",
+  "repo": "faiqhilman13/backdrop-club",
+  "plugin": "backdrop-club",
+  "command": "backdrop",
+  "defaultTheme": "mountain-lake",
+  "featured": ["tokyo", "mountain-lake", "shanghai", "desert-mesas", "new-york", "island-bay"]
+}

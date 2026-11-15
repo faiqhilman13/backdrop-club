@@ -1,0 +1,11 @@
+{
+  "name": "backdrop-club",
+  "owner": { "name": "faiqhilman13" },
+  "plugins": [
+    {
+      "name": "backdrop-club",
+      "source": "./plugin",
+      "description": "Community backdrops for the Claude desktop app: /backdrop <name> picks any theme from the gallery"
+    }
+  ]
+}
