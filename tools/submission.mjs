@@ -163,7 +163,8 @@ async function main() {
     for (let attempt = 0; attempt < 8 && !merged; attempt++) {
       try { gh('pr', 'merge', url, '--squash', '--delete-branch'); merged = true } catch { await new Promise(resolve => setTimeout(resolve, 5000)) }
     }
-    // A merge made by the bot doesn't start other workflows on its own, so it asks for the deploy.
+    // A merge made by the bot neither starts other workflows nor closes the issue its pull request
+    // names, so it asks for the deploy and closes the issue itself.
     if (merged) gh('workflow', 'run', 'deploy.yml', '--ref', 'main')
   }
   comment(repo, issue.number, merged
@@ -177,6 +178,9 @@ async function main() {
         '',
         `It's in ${url}. A maintainer takes a look, and once it's merged it goes live at ${site}t/${id}/ and anyone can use it with \`/${config.command} ${id}\`.`,
       ].join('\n'))
+  if (merged) {
+    try { gh('issue', 'close', String(issue.number), '--reason', 'completed') } catch {}
+  }
   console.log(merged ? `Merged ${url}` : `Opened ${url}`)
 }
 
