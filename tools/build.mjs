@@ -49,6 +49,8 @@ export function loadThemes(dir = path.join(ROOT, 'themes')) {
       description: (details.description ?? '').trim(),
       tags: details.tags ?? [],
       added: details.added ?? new Date().toISOString().slice(0, 10),
+      // The exact time a theme arrived, when the bot recorded it, so the newest sorts first.
+      addedAt: typeof details.addedAt === 'string' ? details.addedAt : (details.added ?? new Date().toISOString().slice(0, 10)),
       license: details.license ?? 'CC-BY-4.0',
       svg: result.svg,
       hash: crypto.createHash('sha256').update(result.svg).digest('hex').slice(0, 16),
@@ -135,7 +137,7 @@ async function main() {
   if (flags.has('--check') && !flags.has('--render')) return
 
   // Newest first, then by name.
-  themes.sort((a, b) => b.added.localeCompare(a.added) || a.name.localeCompare(b.name))
+  themes.sort((a, b) => b.addedAt.localeCompare(a.addedAt) || a.name.localeCompare(b.name))
   const byId = new Map(themes.map(t => [t.id, t]))
 
   fs.rmSync(DIST, { recursive: true, force: true })

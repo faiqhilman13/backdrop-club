@@ -103,7 +103,7 @@ ${scripts.map(s => `<script type="module" src="${base}assets/${s}"></script>`).j
 
   function card(theme) {
     const tags = theme.tags.slice(0, 3).map(t => `<span>${esc(t)}</span>`).join('')
-    return `<article class="card" data-id="${esc(theme.id)}" data-name="${esc(theme.name.toLowerCase())}" data-tags="${esc(theme.tags.join(' '))}" data-author="${esc(theme.author.toLowerCase())}" data-added="${esc(theme.added)}">
+    return `<article class="card" data-id="${esc(theme.id)}" data-name="${esc(theme.name.toLowerCase())}" data-tags="${esc(theme.tags.join(' '))}" data-author="${esc(theme.author.toLowerCase())}" data-added="${esc(theme.addedAt ?? theme.added)}">
   <a class="card-link" href="${base}t/${esc(theme.id)}/" aria-label="${esc(theme.name)}">${win(theme)}</a>
   <div class="card-body">
     <div class="card-title"><a href="${base}t/${esc(theme.id)}/">${esc(theme.name)}</a>${grade(theme)}</div>

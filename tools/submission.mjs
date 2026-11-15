@@ -88,7 +88,8 @@ async function main() {
   const problems = []
   if (!form.rights) problems.push('Tick the box that says you made the art (or may share it) and license it under CC BY 4.0.')
   const id = pickId(form.name, author, issue.number)
-  const details = { name: form.name, author, description: form.description, tags: form.tags, added: new Date().toISOString().slice(0, 10), license: 'CC-BY-4.0', issue: issue.number }
+  const now = new Date().toISOString()
+  const details = { name: form.name, author, description: form.description, tags: form.tags, added: now.slice(0, 10), addedAt: `${now.slice(0, 19)}Z`, license: 'CC-BY-4.0', issue: issue.number }
   problems.push(...checkDetails(details).map(p => `Details: ${p}.`))
   const result = check(form.svg)
   problems.push(...result.errors.map(e => `Theme file: ${e}`))
