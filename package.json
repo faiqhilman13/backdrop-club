@@ -1,0 +1,24 @@
+{
+  "name": "backdrop-club",
+  "version": "0.2.0",
+  "description": "Backdrops for the Claude desktop app from a shell: list, use, download, check and submit community themes",
+  "type": "module",
+  "bin": {
+    "backdrop-club": "cli/backdrop.mjs"
+  },
+  "files": [
+    "cli/",
+    "lib/",
+    "tools/render.mjs",
+    "tools/serve.mjs",
+    "site/assets/",
+    "site/llms.txt"
+  ],
+  "engines": {
+    "node": ">=18.17"
+  },
+  "license": "MIT",
+  "repository": "github:faiqhilman13/backdrop-club",
+  "homepage": "https://faiqhilman13.github.io/backdrop-club/",
+  "keywords": ["claude", "claude-code", "theme", "backdrop", "pixel-art", "cli", "agents"]
+}

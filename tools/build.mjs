@@ -8,15 +8,20 @@
 // A theme is a folder themes/<id>/ holding theme.json and backdrop.svg. Nothing else is read.
 
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ID, LIMIT, READING, check, checkDetails, forceScheme } from '../lib/check.mjs'
 import { pages } from './pages.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const DIST = path.join(ROOT, 'dist')
 const config = JSON.parse(fs.readFileSync(path.join(ROOT, 'site/config.json'), 'utf8'))
-const flags = new Set(process.argv.slice(2))
+const flags = new Set(process.argv.slice(2).filter(a => !a.startsWith('--only=')))
+// --only=a,b checks just those themes: other themes' problems are left to their own checks.
+const ONLY = (process.argv.find(a => a.startsWith('--only=')) ?? '').slice('--only='.length).split(',').filter(Boolean)
+// A check builds into a folder of its own, so checks running side by side never share one.
+const DIST = flags.has('--check') ? fs.mkdtempSync(path.join(os.tmpdir(), 'backdrop-check-')) : path.join(ROOT, 'dist')
+if (flags.has('--check')) process.on('exit', () => fs.rmSync(DIST, { recursive: true, force: true }))
 
 export function loadThemes(dir = path.join(ROOT, 'themes')) {
   const themes = []
@@ -102,7 +107,11 @@ const STARTER = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 160" w
 const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="crispEdges"><style>rect{fill:#d9466f}.g{fill:#2f6f68}@media (prefers-color-scheme:dark){rect{fill:#ff8fb1}.g{fill:#6ee7b7}}</style><rect x="5" y="3" width="6" height="1"/><rect x="4" y="4" width="8" height="1"/><rect x="3" y="5" width="10" height="2"/><rect x="3" y="8" width="10" height="1"/><rect x="4" y="10" width="8" height="1"/><rect class="g" x="0" y="12" width="16" height="2"/><rect class="g" x="2" y="15" width="12" height="1"/></svg>`
 
 async function main() {
-  const { themes, problems } = loadThemes()
+  const loaded = loadThemes()
+  const isMine = text => ONLY.length === 0 || ONLY.some(id => text.startsWith(`themes/${id}:`))
+  const problems = loaded.problems.filter(isMine)
+  const themes = ONLY.length > 0 ? loaded.themes.filter(t => ONLY.includes(t.id)) : loaded.themes
+  for (const id of ONLY) if (!themes.some(t => t.id === id) && !problems.some(p => p.startsWith(`themes/${id}:`))) problems.push(`themes/${id}: not found`)
   for (const theme of themes) for (const w of theme.warnings) console.log(`note: themes/${theme.id}: ${w}`)
   if (problems.length > 0) {
     console.error(`\n${problems.length} problem${problems.length === 1 ? '' : 's'}:\n${problems.map(p => `  - ${p}`).join('\n')}`)
@@ -131,7 +140,7 @@ async function main() {
   // Scores and share images come from a real browser.
   if (flags.has('--render')) {
     const { render } = await import('./render.mjs')
-    const result = await render(themes, { dist: DIST, base: config.base })
+    const result = await render(themes, { dist: DIST, base: config.base, og: !flags.has('--check') })
     if (result) {
       for (const theme of themes) {
         theme.score = result.scores[theme.id]
@@ -159,6 +168,8 @@ async function main() {
   write(path.join(DIST, 'make/index.html'), p.makePage())
   write(path.join(DIST, 'submit/index.html'), p.submitPage())
   write(path.join(DIST, 'guide/index.html'), p.guidePage(STARTER))
+  write(path.join(DIST, 'agents/index.html'), p.agentsPage())
+  fs.copyFileSync(path.join(ROOT, 'site/llms.txt'), path.join(DIST, 'llms.txt'))
   write(path.join(DIST, '404.html'), p.notFound())
   write(path.join(DIST, 'favicon.svg'), FAVICON)
   write(path.join(DIST, '.nojekyll'), '')
@@ -171,7 +182,7 @@ async function main() {
   }))
 
   const site = `${config.origin}${config.base}`
-  const urls = ['', 'make/', 'submit/', 'guide/', ...themes.map(t => `t/${t.id}/`)]
+  const urls = ['', 'make/', 'submit/', 'guide/', 'agents/', 'llms.txt', ...themes.map(t => `t/${t.id}/`)]
   write(path.join(DIST, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(u => `  <url><loc>${site}${u}</loc></url>`).join('\n')}\n</urlset>\n`)
   write(path.join(DIST, 'robots.txt'), `User-agent: *\nAllow: /\nSitemap: ${site}sitemap.xml\n`)
 

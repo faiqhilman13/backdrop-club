@@ -236,6 +236,24 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .code pre { margin: 0; padding: 16px; overflow-x: auto; font-size: 12.5px; line-height: 1.55; }
 .copy-code { position: absolute; top: 8px; right: 8px; cursor: pointer; }
 
+/* Agents page */
+.hero-agent { font-size: 14.5px; color: var(--muted); margin: 4px 0 0; }
+.prose.wide { max-width: 980px; }
+.prompt-box { margin: 28px 0 8px; padding: 22px; border: 1.5px solid var(--ink); background: var(--paper); box-shadow: 4px 4px 0 var(--accent); }
+.prompt-box .label { margin-bottom: 12px; }
+.cmd.tall code { white-space: normal; line-height: 1.5; }
+.agent-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 16px; }
+.agent-card { padding: 18px 20px; border: 1px solid var(--line); background: var(--paper); }
+.agent-card h3 { margin: 0 0 8px; font-size: 17px; }
+.agent-card p { font-size: 15px; color: var(--muted); }
+.agent-card p:last-child { margin-bottom: 0; }
+.agent-card em { color: var(--ink); }
+.cli-table { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 14.5px; }
+.cli-table th, .cli-table td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.cli-table th { font: 700 11.5px/1 var(--pixel); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.cli-table td:first-child { white-space: nowrap; }
+@media (max-width: 640px) { .cli-table td:first-child { white-space: normal; } }
+
 /* Footer */
 .foot { border-top: 1px solid var(--line); padding: 32px var(--gutter) 40px; font-size: 14px; color: var(--muted); }
 .foot-row { max-width: var(--max); margin: 0 auto; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px 32px; align-items: center; }

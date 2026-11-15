@@ -7,5 +7,14 @@
   "plugin": "backdrop-club",
   "command": "backdrop",
   "defaultTheme": "mountain-lake",
-  "featured": ["tokyo", "mountain-lake", "shanghai", "desert-mesas", "new-york", "island-bay"]
+  "featured": [
+    "tokyo",
+    "london",
+    "paris",
+    "san-francisco",
+    "kuala-lumpur",
+    "fjord",
+    "sydney",
+    "mountain-lake"
+  ]
 }

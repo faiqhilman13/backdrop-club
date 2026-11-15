@@ -25,6 +25,23 @@ Answer `y` to add the marketplace and pick a scope. Start a new session and send
 
 Your pick is remembered across sessions. New themes show up for everyone as soon as they're merged: no update needed.
 
+## Or let your agent do it
+
+Paste this to Claude Code, Codex, OpenCode, Gemini CLI, Cursor or any agent with a shell:
+
+> Read https://faiqhilman13.github.io/backdrop-club/llms.txt then show me the Backdrop Club backdrops with their preview images, and set up the one I pick in my Claude app.
+
+It uses the no-install command line (Node 18+):
+
+```
+npx -y github:faiqhilman13/backdrop-club list          # every theme, with preview links (--json for agents)
+npx -y github:faiqhilman13/backdrop-club setup         # install the loader in Claude Code, once
+npx -y github:faiqhilman13/backdrop-club use tokyo     # an open session switches within seconds
+npx -y github:faiqhilman13/backdrop-club download tokyo --out .
+```
+
+Also `search`, `show`, `tags`, `current`, `off`, `on`, `check` and `submit`. Inside Claude Code, Claude gets two tools from the loader, so "give me a backdrop with mountains" just works. More on the [Agents page](https://faiqhilman13.github.io/backdrop-club/agents/).
+
 ## Make one
 
 - **From a photo:** the [maker](https://faiqhilman13.github.io/backdrop-club/make/) dithers any picture into a light and a dark backdrop, right in your browser.
@@ -53,8 +70,10 @@ Themes are data, not code. Each file is checked against an allow-list of SVG dra
 | `lib/check.mjs` | The rulebook, shared by the site, the bot and the loader |
 | `plugin/` | The loader mod people install |
 | `tools/build.mjs` | Builds the site into `dist/` (`--render` adds scores and share images via Chrome) |
+| `cli/backdrop.mjs` | The command line, run with `npx -y github:faiqhilman13/backdrop-club` |
 | `tools/submission.mjs` | The bot that turns submission issues into pull requests |
 | `site/` | Page styles and scripts, including the photo maker |
+| `art/` | The Python kit that drew the starter themes, and their sources ([how to draw one](art/README.md)) |
 
 No dependencies: Node 22 and Chrome. `node tools/build.mjs --render && node tools/serve.mjs` serves it at http://127.0.0.1:4173/backdrop-club/.
 

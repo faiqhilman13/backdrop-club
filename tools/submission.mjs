@@ -78,7 +78,10 @@ async function main() {
   const repo = process.env.GITHUB_REPOSITORY
   const issue = event.issue
   if (!issue || issue.pull_request || issue.state !== 'open') return
-  if (!issue.labels?.some(l => l.name === LABEL)) return
+  const isForm = issue.labels?.some(l => l.name === LABEL)
+  const looksLikeOne = /^Theme:/.test(issue.title ?? '') && String(issue.body ?? '').includes('### Theme file')
+  if (!isForm && !looksLikeOne) return
+  if (!isForm) label(repo, issue.number, LABEL, true)
 
   const author = issue.user.login
   const form = parseIssue(issue.body)

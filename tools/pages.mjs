@@ -53,6 +53,7 @@ ${jsonld ? `<script type="application/ld+json">${JSON.stringify(jsonld).replace(
     <a href="${base}make/">Make one</a>
     <a href="${base}submit/">Submit</a>
     <a href="${base}guide/">Guide</a>
+    <a href="${base}agents/">Agents</a>
     <a href="${github}" rel="noopener">GitHub</a>
   </nav>
   <button class="mode" type="button" aria-label="Switch light and dark" title="Switch light and dark"><span class="mode-sun"></span></button>
@@ -129,6 +130,7 @@ ${scripts.map(s => `<script type="module" src="${base}assets/${s}"></script>`).j
     <div class="hero-actions">
       <button class="cmd hero-cmd" type="button" data-copy="${esc(install)}"><code>${esc(install)}</code><span class="cmd-hint">Copy</span></button>
       <div class="hero-links"><a class="button" href="#gallery">Browse the gallery</a><a class="button ghost" href="${base}make/">Make one from a photo</a></div>
+      <p class="hero-agent">Using Codex, OpenCode or another agent? <a href="${base}agents/">Hand it one link</a> and it sets things up for you.</p>
     </div>
   </div>
   <div class="hero-art">
@@ -354,9 +356,71 @@ ${more.length ? `<section class="gallery more"><h2 class="section-title">More ba
     })
   }
 
+  function agentsPage() {
+    const npx = `npx -y github:${repo}`
+    const prompt = `Read ${url('llms.txt')} then show me the Backdrop Club backdrops with their preview images, and set up the one I pick in my Claude app.`
+    const agents = [
+      ['Claude Code', `<p>Install the loader once:</p><button class="cmd wide" type="button" data-copy="${esc(install)}"><code>${esc(install)}</code><span class="cmd-hint">Copy</span></button><p>Then just ask: <em>"find me a backdrop with mountains"</em>. Claude gets two tools for it, <code>find_backdrops</code> and <code>set_backdrop</code>. Or type <code>/${command} &lt;name&gt;</code>.</p>`],
+      ['Codex', `<p>Paste the prompt above. Codex runs the <code>npx</code> commands in its shell; if its sandbox blocks network access, approve it for this command.</p>`],
+      ['OpenCode', `<p>Paste the prompt above, or tell it to run <code>${esc(npx)} list</code>. It uses its bash tool, and asks before anything that needs permission.</p>`],
+      ['Gemini CLI', `<p>Paste the prompt above. It reads the guide with its web fetch tool and runs the commands with its shell tool.</p>`],
+      ['Cursor, Windsurf, Cline', `<p>Paste the prompt into the agent chat. The commands run in the editor's terminal.</p>`],
+      ['Anything else', `<p>Any agent that can read a web page and run a shell command can do it. One without a shell can give you the two lines to paste into Claude Code.</p>`],
+    ]
+    const rows = [
+      ['list [--tag city]', 'every theme, with preview links'],
+      ['search mountains', 'themes matching some words'],
+      ['show tokyo', 'one theme in detail'],
+      ['setup', 'install the loader in Claude Code, once'],
+      ['use tokyo', 'make it the backdrop; an open session switches in seconds'],
+      ['use random', 'a surprise'],
+      ['current / off / on', "what's showing; hide it; bring it back"],
+      ['download tokyo --out .', 'save the SVG to use elsewhere'],
+      ['check my.svg', "the gallery's rules and readability score"],
+      ['submit my.svg --name "Harbour"', 'share it; shows a preview until you add --yes'],
+    ]
+    const body = `
+<article class="prose wide">
+  <p class="eyebrow">For agents</p>
+  <h1>Let your agent do it.</h1>
+  <p class="lede">Give any coding agent one link. It shows you the backdrops, installs the one you pick, and switches it whenever you ask. You never touch a file.</p>
+  <div class="prompt-box">
+    <p class="label">Paste this to your agent</p>
+    <button class="cmd wide tall" type="button" data-copy="${esc(prompt)}"><code>${esc(prompt)}</code><span class="cmd-hint">Copy</span></button>
+    <p class="small">The guide it reads: <a href="${base}llms.txt">llms.txt</a>. Plain text, written for agents.</p>
+  </div>
+
+  <h2 id="by-agent">By agent</h2>
+  <div class="agent-grid">${agents.map(([n, b]) => `<section class="agent-card"><h3>${esc(n)}</h3>${b}</section>`).join('')}</div>
+
+  <h2 id="cli">The command line</h2>
+  <p>No install: Node 18 or newer runs it straight from GitHub. Every command takes <code>--json</code>.</p>
+  <button class="cmd wide" type="button" data-copy="${esc(npx)} list"><code>${esc(npx)} list</code><span class="cmd-hint">Copy</span></button>
+  <table class="cli-table"><thead><tr><th>Command</th><th>What it does</th></tr></thead><tbody>${rows.map(([c, d]) => `<tr><td><code>${esc(c)}</code></td><td>${esc(d)}</td></tr>`).join('')}</tbody></table>
+  <p>The loader and the command line share one small file, <code>~/.config/backdrop-club/current.json</code>, so a pick made either way shows up in the app.</p>
+
+  <h2 id="api">The JSON API</h2>
+  <p>Read-only, no key, served from GitHub Pages:</p>
+  <ul>
+    <li><a href="${base}api/index.json"><code>api/index.json</code></a>: every theme's id, name, author, description and tags</li>
+    <li><code>api/themes/&lt;id&gt;.json</code>: one theme, with its SVG</li>
+    <li><code>t/&lt;id&gt;/backdrop.svg</code>, <code>light.svg</code>, <code>dark.svg</code>, and <code>og/&lt;id&gt;.png</code> for a preview</li>
+  </ul>
+
+  <h2 id="contributing">Agents that make themes</h2>
+  <p>An agent can draw a theme, check it with <code>check</code>, and submit it with <code>submit</code> once you say yes. Working inside the repository? <a href="${github}/blob/main/AGENTS.md">AGENTS.md</a> has the details.</p>
+</article>`
+    return layout({
+      path: 'agents/',
+      pageTitle: 'Use Backdrop Club with Claude Code, Codex, OpenCode and other agents',
+      description: 'Give your coding agent one link and it installs a Claude app backdrop for you. A no-install command line, an llms.txt guide and a JSON API, for Claude Code, Codex, OpenCode, Gemini CLI and Cursor.',
+      body,
+    })
+  }
+
   function notFound() {
     return layout({ path: '404.html', pageTitle: 'Not found', description: 'This page is not here.', body: `<section class="prose"><h1>Nothing here.</h1><p>That page doesn't exist, or the theme was renamed. <a href="${base}#gallery">Back to the gallery</a>.</p></section>` })
   }
 
-  return { home, themePage, makePage, submitPage, guidePage, notFound, layout }
+  return { home, themePage, makePage, submitPage, guidePage, agentsPage, notFound, layout }
 }

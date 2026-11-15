@@ -80,9 +80,11 @@ class Browser {
   }
 
   async close() {
+    const exited = new Promise(resolve => { if (this.proc.exitCode !== null) resolve(); else this.proc.once('exit', resolve) })
     try { await this.send('Browser.close') } catch {}
+    await Promise.race([exited, sleep(5000)])
     this.proc.kill()
-    fs.rmSync(this.profile, { recursive: true, force: true })
+    try { fs.rmSync(this.profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }) } catch {}
   }
 }
 

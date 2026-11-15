@@ -1,0 +1,75 @@
+# Backdrop Club
+
+> Free, community-made backdrops for the Claude desktop app: pixel-art cities and landscapes drawn behind the chat, each with a light and a dark look, kept low in the window so the chat stays readable. Gallery: https://faiqhilman13.github.io/backdrop-club/
+
+This guide is for AI agents (Claude Code, Codex, OpenCode, Gemini CLI, Cursor, Aider, and others) helping a person browse, apply, download, make or share a backdrop. Everything works from a shell with Node 18 or newer. Nothing needs a browser, an account or an API key, except submitting, which uses the person's GitHub account through `gh`.
+
+## Do this when someone hands you this link
+
+1. Show them the choices: run `npx -y github:faiqhilman13/backdrop-club list` (add `--json` to parse it). Give them each theme's name and its preview image, `https://faiqhilman13.github.io/backdrop-club/og/<id>.png` (light and dark side by side), or its page `https://faiqhilman13.github.io/backdrop-club/t/<id>/`. Filter with `--tag city` or `search <words>` if they said what they like.
+2. Let them pick. Don't choose for them unless they ask you to.
+3. Install the loader in Claude Code, once: `npx -y github:faiqhilman13/backdrop-club setup`. It runs `claude plugin install backdrop-club --marketplace faiqhilman13/backdrop-club`. If the `claude` command isn't available, tell them to type `/plugin install backdrop-club --marketplace faiqhilman13/backdrop-club` in Claude Code instead.
+4. Apply their pick: `npx -y github:faiqhilman13/backdrop-club use <id>`. An open Claude Code session in the desktop app switches within a few seconds; new sessions start with it. The pick is remembered.
+5. Tell them what you did, and that `use <another-id>`, `off` and `on` change it later.
+
+The backdrop shows in the Claude desktop app (its Code tab). It does not change your own interface if you are a different agent.
+
+## Commands
+
+Run as `npx -y github:faiqhilman13/backdrop-club <command>`. Every command takes `--json` and exits non-zero on failure.
+
+| Command | What it does |
+| --- | --- |
+| `list [--tag <tag>]` | Every theme, newest first: id, name, author, tags, page, preview, svg, and the command to use it |
+| `search <words>` | Themes whose name, tags, description or author contain all the words |
+| `show <id>` | One theme's details and links |
+| `tags` | Tags with counts |
+| `setup [--scope user\|project\|local]` | Installs the loader mod in Claude Code (default scope: user) |
+| `use <id> \| random` | Makes that theme the backdrop. Ids and names both work; partial names match |
+| `current` | What is picked now |
+| `off`, `on` | Hides the backdrop, or brings it back |
+| `download <id> [--out <dir>] [--mode both\|light\|dark\|all]` | Saves the SVG: `both` is one file that follows the system's light or dark mode |
+| `check <file.svg>` | The gallery's rules, plus a readability score when Chrome or Chromium is installed |
+| `submit <file.svg> --name <name> [--description <text>] [--tags a,b] [--yes]` | Opens a public submission issue under the person's GitHub account with `gh`. Without `--yes` it only shows what it would send. Ask the person before adding `--yes` |
+| `docs` | Prints this guide |
+
+How `use` works: it writes `~/.config/backdrop-club/current.json` (or under `$XDG_CONFIG_HOME`), with the theme's id, name, author and SVG. The loader reads that file and checks the SVG again before drawing it.
+
+## Inside Claude Code
+
+Once the loader is installed, the person can type `/backdrop <id>`, `/backdrop random`, `/backdrop list [tag]`, `/backdrop off` or `/backdrop on`. Claude also gets two tools, `mcp__backdrop-club__find_backdrops` (input `query`, optional) and `mcp__backdrop-club__set_backdrop` (input `theme`: an id or name, or random, off, on, default), so "give me a backdrop with mountains" just works.
+
+## Notes for other agents
+
+- Codex CLI, OpenCode, Gemini CLI, Aider, Goose, Cline: run the commands above in your shell tool. If your sandbox blocks network access or writing outside the project, ask the person to allow it for this command, or give them the commands to run.
+- Cursor and other editor agents: same commands, in the integrated terminal.
+- Agents without a shell: give the person the two lines to paste into Claude Code: `/plugin install backdrop-club --marketplace faiqhilman13/backdrop-club`, then `/backdrop <id>`.
+
+## Read-only JSON API
+
+No key needed. Served by GitHub Pages; cache freely.
+
+- `GET https://faiqhilman13.github.io/backdrop-club/api/index.json` → `{ updated, count, themes: [{ id, name, author, description, tags, added }] }`
+- `GET https://faiqhilman13.github.io/backdrop-club/api/themes/<id>.json` → `{ id, name, author, description, tags, license, svg }`
+- `GET https://faiqhilman13.github.io/backdrop-club/t/<id>/backdrop.svg` (follows light or dark mode), `light.svg`, `dark.svg`
+- `GET https://faiqhilman13.github.io/backdrop-club/og/<id>.png`: 1200x630 preview, light and dark split diagonally
+
+## Making a theme
+
+A theme is one SVG file. The rules, which `check` enforces:
+
+1. Use a wide viewBox (512 by 160 works well) with `preserveAspectRatio="xMidYMax slice"`, so it scales to the window's height and sits on its bottom edge. A 16:10 window shows only the middle half (x 128 to 384); keep the subject there.
+2. Keep it low. The scene belongs in the bottom third of the window; above that only sky, haze and a few thin tops. Nothing busy behind the chat.
+3. Support both modes with `@media (prefers-color-scheme: dark)`: pale pastel colours for light mode, deep dark ones for dark mode, bright colours only as small accents low down.
+4. Chat text must keep at least 4.5:1 contrast over the part of the window where it sits, in both modes (7:1 earns "Reads clean").
+5. Still and self-contained: allowed elements are svg, g, defs, symbol, use, title, desc, style, path, rect, circle, ellipse, line, polyline, polygon, text, tspan, linearGradient, radialGradient, stop, pattern, clipPath, mask, image (base64 PNG, JPEG, WebP or GIF only) and filter primitives. No script, animation, event handlers, external links, @import or fonts.
+6. At most 120,000 characters.
+7. Only art the person made or may share; it is published under CC BY 4.0.
+
+A starter file is on https://faiqhilman13.github.io/backdrop-club/guide/#by-hand. People can also turn a photo into a theme in the browser at https://faiqhilman13.github.io/backdrop-club/make/.
+
+## Sharing a theme
+
+`check` it, show the person the result, then `submit` it (with their go-ahead for `--yes`). A bot checks the issue and opens a pull request; once a maintainer merges it, the theme is live for everyone. Contributors working in the repository: see https://github.com/faiqhilman13/backdrop-club/blob/main/AGENTS.md
+
+Backdrop Club is an unofficial community project, not affiliated with Anthropic.

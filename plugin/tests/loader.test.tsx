@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 
 import { DEFAULT } from '../hooks/default.js'
 
@@ -16,10 +16,24 @@ const BAD_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 160"><
 type On = Parameters<Extract<Parameters<typeof test>[1], (...args: never[]) => unknown>>[1]
 
 /** Stands in for the engine and the gallery's website. */
-function engine(on: On, kept: Record<string, unknown> = {}, site: Record<string, unknown> = {}) {
+const PICK = '/home/test/.config/backdrop-club/current.json'
+
+function engine(on: On, kept: Record<string, unknown> = {}, site: Record<string, unknown> = {}, files: Record<string, string> = {}) {
   const themes: unknown[] = []
   const fetched: string[] = []
+  const stamps: Record<string, number> = {}
   let cleared = 0
+  const clock = mock.clock(on, { now: 0 })
+
+  mock.env(on, { HOME: '/home/test' })
+  // Files live in memory: the pick file the CLI and the loader share.
+  on('fs.read', (_, e) => (e.path in files ? { value: files[e.path]! } : { deny: 'ENOENT' }))
+  on('fs.write', (_, e) => {
+    files[e.path] = e.text
+    stamps[e.path] = (stamps[e.path] ?? 0) + 1
+    return { value: undefined }
+  })
+  on('fs.stat', (_, e) => (e.path in files ? { value: { kind: 'file' as const, size: files[e.path]!.length, mtimeMs: stamps[e.path] ?? 1, isLink: false } } : { deny: 'ENOENT' }))
 
   on('theme.set', (_, e) => {
     themes.push(e)
@@ -49,7 +63,12 @@ function engine(on: On, kept: Record<string, unknown> = {}, site: Record<string,
     return body === undefined ? answer(404, 'not found') : answer(200, JSON.stringify(body))
   })
 
-  return { themes, fetched, kept, cleared: () => cleared }
+  /** What the CLI does: writes the pick file. */
+  const cli = (pick: Record<string, unknown>) => {
+    files[PICK] = JSON.stringify(pick)
+    stamps[PICK] = (stamps[PICK] ?? 0) + 1
+  }
+  return { themes, fetched, kept, files, clock, cli, cleared: () => cleared }
 }
 
 const INDEX = {
@@ -144,4 +163,37 @@ test('list, off and on', async ($, on) => {
   expect(back.text).toContain(`Showing ${DEFAULT.name}`)
   expect(kept.off).toBe(undefined)
   expect(themes.length).toBe(2)
+})
+
+test('a pick made with the CLI shows in an open session within seconds, and a pick here reaches the CLI', async ($, on) => {
+  const { clock, cli, files } = engine(on, {}, INDEX)
+
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  expect(await drawn($)).toBe(DEFAULT.svg)
+
+  cli({ id: 'tokyo', name: 'Tokyo', author: 'someone', svg: TOKYO_SVG, off: false })
+  await clock.advance(3100)
+  expect(await drawn($)).toBe(TOKYO_SVG)
+
+  // A file that breaks the rules is never drawn.
+  cli({ id: 'broken', name: 'Broken', author: 'someone', svg: BAD_SVG })
+  await clock.advance(3100)
+  expect(await drawn($)).toBe(DEFAULT.svg)
+
+  await $.command.run({ command: 'backdrop', args: 'tokyo', ...RUN })
+  expect(JSON.parse(files[PICK]!).id).toBe('tokyo')
+})
+
+test('Claude can find backdrops and set the one the person picks', async ($, on) => {
+  const { files } = engine(on, {}, INDEX)
+
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  const found = await $.tool.call({ tool: 'mcp__backdrop-club__find_backdrops', query: 'city' })
+  expect(String(found.result)).toContain('tokyo: Tokyo by @someone [city]')
+  expect(String(found.result)).not.toContain('island-bay')
+
+  const set = await $.tool.call({ tool: 'mcp__backdrop-club__set_backdrop', theme: 'Tokyo' })
+  expect(String(set.result)).toContain('Now showing Tokyo')
+  expect(await drawn($)).toBe(TOKYO_SVG)
+  expect(JSON.parse(files[PICK]!).id).toBe('tokyo')
 })
