@@ -1,6 +1,6 @@
 {
   "name": "backdrop-club",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Backdrops for the Claude desktop app from a shell: list, use, download, check and submit community themes",
   "type": "module",
   "bin": {
@@ -19,6 +19,14 @@
   },
   "license": "MIT",
   "repository": "github:faiqhilman13/backdrop-club",
-  "homepage": "https://faiqhilman13.github.io/backdrop-club/",
-  "keywords": ["claude", "claude-code", "theme", "backdrop", "pixel-art", "cli", "agents"]
+  "homepage": "https://backdrop-club.netlify.app/",
+  "keywords": [
+    "claude",
+    "claude-code",
+    "theme",
+    "backdrop",
+    "pixel-art",
+    "cli",
+    "agents"
+  ]
 }

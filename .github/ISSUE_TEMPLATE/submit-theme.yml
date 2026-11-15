@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for sharing! The easiest way is the [Submit page](https://faiqhilman13.github.io/backdrop-club/submit/): it checks your theme and fills most of this in.
+        Thanks for sharing! The easiest way is the [Submit page](https://backdrop-club.netlify.app/submit/): it checks your theme and fills most of this in.
         A bot checks the theme and opens a pull request within a minute or two. You are credited as the issue's author.
   - type: input
     id: name

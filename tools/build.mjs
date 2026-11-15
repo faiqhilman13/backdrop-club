@@ -204,7 +204,7 @@ async function main() {
 
   // The loader carries the rulebook and one scene, so it works offline from the first start.
   sync(path.join(ROOT, 'plugin/hooks/check.js'), `// Copied from lib/check.mjs by tools/build.mjs. Edit that file, not this one.\n${fs.readFileSync(path.join(ROOT, 'lib/check.mjs'), 'utf8')}`)
-  sync(path.join(ROOT, 'plugin/hooks/site.js'), `// Written by tools/build.mjs from site/config.json: where the loader fetches themes.\nexport const SITE = ${JSON.stringify(`${config.origin}${config.base}`)}\n`)
+  sync(path.join(ROOT, 'plugin/hooks/site.js'), `// Written by tools/build.mjs from site/config.json.\n// Where the loader fetches themes from, and the address it shows people.\nexport const SITE = ${JSON.stringify(config.api ?? `${config.origin}${config.base}`)}\nexport const WEB = ${JSON.stringify(`${config.origin}${config.base}`)}\n`)
   const fallback = byId.get(config.defaultTheme) ?? themes[0]
   sync(path.join(ROOT, 'plugin/hooks/default.js'), `// Written by tools/build.mjs from themes/${fallback.id}. The scene shown before any other is picked.\nexport const DEFAULT = ${JSON.stringify({ id: fallback.id, name: fallback.name, author: fallback.author, svg: fallback.svg })}\n`)
 

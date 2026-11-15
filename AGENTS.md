@@ -4,7 +4,7 @@ Guidance for AI coding agents (Codex, OpenCode, Claude Code, Cursor, Gemini CLI,
 
 ## If you were sent here to install a backdrop
 
-You don't need to clone anything. Follow https://faiqhilman13.github.io/backdrop-club/llms.txt. In short:
+You don't need to clone anything. Follow https://backdrop-club.netlify.app/llms.txt. In short:
 
 ```
 npx -y github:faiqhilman13/backdrop-club list            # show the person the themes (add --json to parse)
@@ -12,7 +12,7 @@ npx -y github:faiqhilman13/backdrop-club setup           # install the loader in
 npx -y github:faiqhilman13/backdrop-club use <their-pick>
 ```
 
-Let the person choose the theme. Each one has a preview at `https://faiqhilman13.github.io/backdrop-club/og/<id>.png`.
+Let the person choose the theme. Each one has a preview at `https://backdrop-club.netlify.app/og/<id>.png`.
 
 ## What this repository is
 
@@ -37,7 +37,7 @@ No package dependencies. Node 22 for the tools, Chrome or Chromium for `--render
    ```json
    { "name": "Harbour at dusk", "author": "<github-username>", "description": "One plain sentence.", "tags": ["city", "sea"], "added": "YYYY-MM-DD", "license": "CC-BY-4.0" }
    ```
-2. Follow the rules in https://faiqhilman13.github.io/backdrop-club/guide/#rules. The short version: the scene stays in the bottom third of the window; pale fills by day, dark by night; 4.5:1 contrast for chat text in both modes; still, self-contained SVG under 120,000 characters.
+2. Follow the rules in https://backdrop-club.netlify.app/guide/#rules. The short version: the scene stays in the bottom third of the window; pale fills by day, dark by night; 4.5:1 contrast for chat text in both modes; still, self-contained SVG under 120,000 characters.
 3. Check it: `node tools/build.mjs --render --check --only=<id>`. It must pass.
 4. To draw in the house style, use the kit: see `art/README.md`, write `art/scene_<name>.py`, preview with `python3 art/look.py scene_<name> <dir>`, export with `python3 art/export.py scene_<name>`.
 
@@ -56,7 +56,7 @@ No package dependencies. Node 22 for the tools, Chrome or Chromium for `--render
 - **Builds:** readability scores and share images are cached under `.cache/render/`, keyed by each theme's fingerprint (and by the code that made them), locally and in CI. A push renders only new or changed themes. Delete `.cache/` to start over.
 - **API:** clients use `api/v1/`. Keep the unversioned `api/` files: loaders older than 0.3.0 read them. Change `v1`'s shape only by adding fields; anything else is a `v2`.
 - **A mirror:** `.github/workflows/mirror.yml` pushes every branch and tag to a second host once a `MIRROR_URL` secret exists. Make an empty repository on Codeberg or GitLab, create an access token with write access, then run `gh secret set MIRROR_URL -R faiqhilman13/backdrop-club` and paste `https://<user>:<token>@codeberg.org/<user>/backdrop-club.git`.
-- **A custom domain:** set `origin` and `base` in `site/config.json` (e.g. `https://example.club` and `/`), add the domain in the repository's Pages settings, run `node tools/build.mjs`, bump the loader's version and push. GitHub redirects the old `github.io` address to the new one, so loaders installed before the move keep working.
+- **The address:** people use `https://backdrop-club.netlify.app/`, a Netlify proxy (`netlify/_redirects`) in front of the GitHub Pages build, so a merge shows up there with no second deploy. The loader and CLI read data straight from GitHub Pages (`api` in `site/config.json`). Pages opened at the old `github.io` address send people to the new one. To move to a custom domain later, add it to the Netlify site and set `origin` in `site/config.json`.
 
 ## Don't
 

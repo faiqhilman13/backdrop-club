@@ -2,8 +2,8 @@
 
 ## The easy way
 
-1. Make your theme with the [maker](https://faiqhilman13.github.io/backdrop-club/make/), or draw one by hand (see the [guide](https://faiqhilman13.github.io/backdrop-club/guide/)).
-2. Open the [Submit page](https://faiqhilman13.github.io/backdrop-club/submit/), add your file, a name and a few tags. It shows your theme in light and dark mode and runs the gallery's checks.
+1. Make your theme with the [maker](https://backdrop-club.netlify.app/make/), or draw one by hand (see the [guide](https://backdrop-club.netlify.app/guide/)).
+2. Open the [Submit page](https://backdrop-club.netlify.app/submit/), add your file, a name and a few tags. It shows your theme in light and dark mode and runs the gallery's checks.
 3. Press **Copy and open GitHub**, paste into **Theme file**, and create the issue.
 4. The bot replies within a couple of minutes: either a pull request with your theme, or a list of what to fix. Edit the issue and it checks again.
 
@@ -32,7 +32,7 @@ Add a folder `themes/<id>/` with two files:
 
 - Art you made or may share. No logos, brands, or other people's photos or artwork.
 - Nothing hateful, sexual, or meant to shock. It sits behind people's work all day.
-- It passes the checks: the [rules](https://faiqhilman13.github.io/backdrop-club/guide/#rules) are in the guide.
+- It passes the checks: the [rules](https://backdrop-club.netlify.app/guide/#rules) are in the guide.
 - A distinct scene, not a recolour of an existing theme.
 
 A maintainer reviews every theme before it's merged. Ids are first come, first served.

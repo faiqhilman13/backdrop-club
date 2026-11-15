@@ -1,5 +1,5 @@
 blank_issues_enabled: true
 contact_links:
   - name: Check your theme first
-    url: https://faiqhilman13.github.io/backdrop-club/submit/
+    url: https://backdrop-club.netlify.app/submit/
     about: The Submit page previews your theme in light and dark mode and runs the gallery's checks.

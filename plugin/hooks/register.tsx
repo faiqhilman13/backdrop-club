@@ -1,7 +1,7 @@
 import type { EngineInterface, Register } from 'claude-code'
 import { check } from './check.js'
 import { DEFAULT } from './default.js'
-import { SITE } from './site.js'
+import { SITE, WEB } from './site.js'
 
 // The gallery's API. Every theme there passed the same check this mod runs.
 const API = `${SITE}api/v1/`
@@ -221,14 +221,14 @@ async function pick($: EngineInterface, asked: string) {
   } catch (error) {
     return `Couldn't reach the gallery (${error instanceof Error ? error.message : String(error)}). The backdrop stays as it was.`
   }
-  if (list.length === 0) return `The gallery didn't answer with any themes. The backdrop stays as it was.\nBrowse: ${SITE}`
+  if (list.length === 0) return `The gallery didn't answer with any themes. The backdrop stays as it was.\nBrowse: ${WEB}`
   try {
     if (verb === 'random' || verb === 'surprise') {
       const others = list.filter(t => t.id !== shown.id)
       return await use($, others[Math.floor(Math.random() * others.length)] ?? list[0]!)
     }
     const found = findIn(list, asked)
-    if (!found) return `No theme called "${asked}" yet. Try /${COMMAND} list, or browse ${SITE}`
+    if (!found) return `No theme called "${asked}" yet. Try /${COMMAND} list, or browse ${WEB}`
     return await use($, found)
   } catch (error) {
     return `Couldn't fetch that theme (${error instanceof Error ? error.message : String(error)}). The backdrop stays as it was.`
@@ -265,7 +265,7 @@ async function checkForUpdates($: EngineInterface) {
 
 function describe(t: Listed) {
   const tags = (t.tags ?? []).filter(x => x !== 'dither')
-  return `${t.id}: ${t.name} by @${t.author}${tags.length ? ` [${tags.join(', ')}]` : ''}${t.description ? ` - ${t.description}` : ''} (preview ${SITE}og/${t.id}.png)`
+  return `${t.id}: ${t.name} by @${t.author}${tags.length ? ` [${tags.join(', ')}]` : ''}${t.description ? ` - ${t.description}` : ''} (preview ${WEB}og/${t.id}.png)`
 }
 
 const HELP = [
@@ -273,7 +273,7 @@ const HELP = [
   `/${COMMAND} random   a surprise`,
   `/${COMMAND} list [tag]   what the gallery has`,
   `/${COMMAND} off | on   hide the backdrop, or bring it back`,
-  `Browse them all: ${SITE}`,
+  `Browse them all: ${WEB}`,
 ].join('\n')
 
 export const register: Register = on => {
@@ -330,7 +330,7 @@ export const register: Register = on => {
     try {
       list = await gallery($)
     } catch (error) {
-      return { result: `Couldn't reach the gallery (${error instanceof Error ? error.message : String(error)}). Browse it at ${SITE}` }
+      return { result: `Couldn't reach the gallery (${error instanceof Error ? error.message : String(error)}). Browse it at ${WEB}` }
     }
     const terms = query.split(/\s+/).filter(Boolean)
     const picked = list.filter(t => {
@@ -339,8 +339,8 @@ export const register: Register = on => {
     })
     const now = isOff ? `The backdrop is off (last: ${shown.name}).` : `Showing now: ${shown.name} (${shown.id}).`
     const body = picked.length > 0 ? picked.slice(0, 80).map(describe).join('\n') : `Nothing matches "${query}". There are ${list.length} themes in all.`
-    return { result: `${now}\n${picked.length} theme${picked.length === 1 ? '' : 's'}${query ? ` matching "${query}"` : ''}:\n${body}\nGallery: ${SITE}` }
-  }).catch(() => ({ result: `The backdrop gallery couldn't be read just now. Browse it at ${SITE}` }))
+    return { result: `${now}\n${picked.length} theme${picked.length === 1 ? '' : 's'}${query ? ` matching "${query}"` : ''}:\n${body}\nGallery: ${WEB}` }
+  }).catch(() => ({ result: `The backdrop gallery couldn't be read just now. Browse it at ${WEB}` }))
 
   on('tool.call', { tool: TOOLS.set }, async ($, e) => {
     const theme = String((e as unknown as { theme?: unknown }).theme ?? '').trim()
@@ -365,9 +365,9 @@ export const register: Register = on => {
       }
       const tag = rest.join(' ').toLowerCase()
       const picked = tag ? list.filter(t => Array.isArray(t.tags) && t.tags.includes(tag)) : list
-      if (picked.length === 0) return { text: `No themes tagged "${tag}" yet. Browse: ${SITE}` }
+      if (picked.length === 0) return { text: `No themes tagged "${tag}" yet. Browse: ${WEB}` }
       const lines = picked.slice(0, 60).map(t => `${t.id === shown.id ? '* ' : '  '}${t.id}  (${t.name} by @${t.author})`)
-      const more = picked.length > 60 ? `\n…and ${picked.length - 60} more at ${SITE}` : ''
+      const more = picked.length > 60 ? `\n…and ${picked.length - 60} more at ${WEB}` : ''
       return { text: `${picked.length} theme${picked.length === 1 ? '' : 's'}${tag ? ` tagged ${tag}` : ''}. Pick one with /${COMMAND} <name>.\n${lines.join('\n')}${more}` }
     }
     return { text: await pick($, args) }

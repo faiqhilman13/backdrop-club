@@ -1,12 +1,12 @@
 # Backdrop Club
 
-> Free, community-made backdrops for the Claude desktop app: pixel-art cities and landscapes drawn behind the chat, each with a light and a dark look, kept low in the window so the chat stays readable. Gallery: https://faiqhilman13.github.io/backdrop-club/
+> Free, community-made backdrops for the Claude desktop app: pixel-art cities and landscapes drawn behind the chat, each with a light and a dark look, kept low in the window so the chat stays readable. Gallery: https://backdrop-club.netlify.app/
 
 This guide is for AI agents (Claude Code, Codex, OpenCode, Gemini CLI, Cursor, Aider, and others) helping a person browse, apply, download, make or share a backdrop. Everything works from a shell with Node 18 or newer. Nothing needs a browser, an account or an API key, except submitting, which uses the person's GitHub account through `gh`.
 
 ## Do this when someone hands you this link
 
-1. Show them the choices: run `npx -y github:faiqhilman13/backdrop-club list` (add `--json` to parse it). Give them each theme's name and its preview image, `https://faiqhilman13.github.io/backdrop-club/og/<id>.png` (light and dark side by side), or its page `https://faiqhilman13.github.io/backdrop-club/t/<id>/`. Filter with `--tag city` or `search <words>` if they said what they like.
+1. Show them the choices: run `npx -y github:faiqhilman13/backdrop-club list` (add `--json` to parse it). Give them each theme's name and its preview image, `https://backdrop-club.netlify.app/og/<id>.png` (light and dark side by side), or its page `https://backdrop-club.netlify.app/t/<id>/`. Filter with `--tag city` or `search <words>` if they said what they like.
 2. Let them pick. Don't choose for them unless they ask you to.
 3. Install the loader in Claude Code, once: `npx -y github:faiqhilman13/backdrop-club setup`. It runs `claude plugin install backdrop-club --marketplace faiqhilman13/backdrop-club`. If the `claude` command isn't available, tell them to type `/plugin install backdrop-club --marketplace faiqhilman13/backdrop-club` in Claude Code instead.
 4. Apply their pick: `npx -y github:faiqhilman13/backdrop-club use <id>`. An open Claude Code session in the desktop app switches within a few seconds; new sessions start with it. The pick is remembered.
@@ -49,12 +49,12 @@ Once the loader is installed, the person can type `/backdrop <id>`, `/backdrop r
 
 No key needed. Served by GitHub Pages; cache freely. Version 1:
 
-- `GET https://faiqhilman13.github.io/backdrop-club/api/v1/index.json` → `{ version, updated, count, themes: [{ id, name, author, description, tags, added, hash }], revoked: [id] }`. `hash` changes when a theme's file changes; `revoked` lists themes taken down, which clients should stop showing.
-- `GET https://faiqhilman13.github.io/backdrop-club/api/v1/themes/<id>.json` → `{ id, name, author, description, tags, license, hash, svg }`
-- `GET https://faiqhilman13.github.io/backdrop-club/t/<id>/backdrop.svg` (follows light or dark mode), `light.svg`, `dark.svg`
-- `GET https://faiqhilman13.github.io/backdrop-club/og/<id>.png`: 1200x630 preview, light and dark split diagonally
+- `GET https://backdrop-club.netlify.app/api/v1/index.json` → `{ version, updated, count, themes: [{ id, name, author, description, tags, added, hash }], revoked: [id] }`. `hash` changes when a theme's file changes; `revoked` lists themes taken down, which clients should stop showing.
+- `GET https://backdrop-club.netlify.app/api/v1/themes/<id>.json` → `{ id, name, author, description, tags, license, hash, svg }`
+- `GET https://backdrop-club.netlify.app/t/<id>/backdrop.svg` (follows light or dark mode), `light.svg`, `dark.svg`
+- `GET https://backdrop-club.netlify.app/og/<id>.png`: 1200x630 preview, light and dark split diagonally
 
-The unversioned `api/index.json` and `api/themes/<id>.json` stay for loaders installed before v1.
+The unversioned `api/index.json` and `api/themes/<id>.json` stay for loaders installed before v1. Every file is also served from the origin, `https://faiqhilman13.github.io/backdrop-club/`, which the loader and the CLI read directly.
 
 ## Making a theme
 
@@ -68,7 +68,7 @@ A theme is one SVG file. The rules, which `check` enforces:
 6. At most 120,000 characters.
 7. Only art the person made or may share; it is published under CC BY 4.0.
 
-A starter file is on https://faiqhilman13.github.io/backdrop-club/guide/#by-hand. People can also turn a photo into a theme in the browser at https://faiqhilman13.github.io/backdrop-club/make/.
+A starter file is on https://backdrop-club.netlify.app/guide/#by-hand. People can also turn a photo into a theme in the browser at https://backdrop-club.netlify.app/make/.
 
 ## Sharing a theme
 

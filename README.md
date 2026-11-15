@@ -2,7 +2,7 @@
 
 **Free, community-made backdrops for the Claude desktop app.** Pixel-art cities and landscapes that sit at the bottom of the window, so your chat stays easy to read. Every theme has a light look and a dark look.
 
-**Browse the gallery: https://faiqhilman13.github.io/backdrop-club/**
+**Browse the gallery: https://backdrop-club.netlify.app/**
 
 ![Backdrop Club](.github/preview.png)
 
@@ -29,7 +29,7 @@ Your pick is remembered across sessions. New themes show up for everyone as soon
 
 Paste this to Claude Code, Codex, OpenCode, Gemini CLI, Cursor or any agent with a shell:
 
-> Read https://faiqhilman13.github.io/backdrop-club/llms.txt then show me the Backdrop Club backdrops with their preview images, and set up the one I pick in my Claude app.
+> Read https://backdrop-club.netlify.app/llms.txt then show me the Backdrop Club backdrops with their preview images, and set up the one I pick in my Claude app.
 
 It uses the no-install command line (Node 18+):
 
@@ -40,16 +40,16 @@ npx -y github:faiqhilman13/backdrop-club use tokyo     # an open session switche
 npx -y github:faiqhilman13/backdrop-club download tokyo --out .
 ```
 
-Also `search`, `show`, `tags`, `current`, `off`, `on`, `check` and `submit`. Inside Claude Code, Claude gets two tools from the loader, so "give me a backdrop with mountains" just works. More on the [Agents page](https://faiqhilman13.github.io/backdrop-club/agents/).
+Also `search`, `show`, `tags`, `current`, `off`, `on`, `check` and `submit`. Inside Claude Code, Claude gets two tools from the loader, so "give me a backdrop with mountains" just works. More on the [Agents page](https://backdrop-club.netlify.app/agents/).
 
 ## Make one
 
-- **From a photo:** the [maker](https://faiqhilman13.github.io/backdrop-club/make/) dithers any picture into a light and a dark backdrop, right in your browser.
-- **By hand:** one SVG file. The [guide](https://faiqhilman13.github.io/backdrop-club/guide/) has the rules and a starter file.
+- **From a photo:** the [maker](https://backdrop-club.netlify.app/make/) dithers any picture into a light and a dark backdrop, right in your browser.
+- **By hand:** one SVG file. The [guide](https://backdrop-club.netlify.app/guide/) has the rules and a starter file.
 
 ## Share one
 
-Check it on the [Submit page](https://faiqhilman13.github.io/backdrop-club/submit/), then press **Copy and open GitHub**. A bot checks your theme and opens a pull request; once merged it's live. Details in [CONTRIBUTING.md](CONTRIBUTING.md).
+Check it on the [Submit page](https://backdrop-club.netlify.app/submit/), then press **Copy and open GitHub**. A bot checks your theme and opens a pull request; once merged it's live. Details in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## The rules (why chat stays readable)
 

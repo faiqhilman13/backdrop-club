@@ -29,7 +29,9 @@ for (let i = 0; i < argv.length; i++) {
   else if (a === '-y') flags.yes = true
   else words.push(a)
 }
+// Data comes from the gallery's origin; links shown to people use its short address.
 const SITE = (flags.site ?? process.env.BACKDROP_CLUB_SITE ?? 'https://faiqhilman13.github.io/backdrop-club/').replace(/\/?$/, '/')
+const WEB = (flags.web ?? process.env.BACKDROP_CLUB_WEB ?? (flags.site || process.env.BACKDROP_CLUB_SITE ? SITE : 'https://backdrop-club.netlify.app/')).replace(/\/?$/, '/')
 const asJson = Boolean(flags.json)
 
 /** Where the current pick lives; the loader mod in Claude Code reads the same file. */
@@ -68,9 +70,9 @@ async function gallery() {
   revoked = Array.isArray(index.revoked) ? index.revoked : []
   return index.themes.map(t => ({
     ...t,
-    page: `${SITE}t/${t.id}/`,
-    preview: `${SITE}og/${t.id}.png`,
-    svg: `${SITE}t/${t.id}/backdrop.svg`,
+    page: `${WEB}t/${t.id}/`,
+    preview: `${WEB}og/${t.id}.png`,
+    svg: `${WEB}t/${t.id}/backdrop.svg`,
     use: `${NPX} use ${t.id}`,
   }))
 }
@@ -113,7 +115,7 @@ function loaderInstalled() {
   }
 }
 
-const HELP = `Backdrop Club: backdrops for the Claude desktop app.  ${SITE}
+const HELP = `Backdrop Club: backdrops for the Claude desktop app.  ${WEB}
 
   ${NPX} <command> [--json]
 
@@ -138,7 +140,7 @@ Make and share
                            open a submission issue on GitHub with gh; without --yes it only shows it
 
 Docs
-  docs                     the guide for agents (also at ${SITE}llms.txt)
+  docs                     the guide for agents (also at ${WEB}llms.txt)
 
 Every command takes --json for output a program can read.`
 
@@ -148,14 +150,14 @@ async function main() {
 
   if (command === 'docs') {
     const local = path.join(ROOT, 'site', 'llms.txt')
-    const text = fs.existsSync(local) ? fs.readFileSync(local, 'utf8') : await (await fetch(`${SITE}llms.txt`)).text()
+    const text = fs.existsSync(local) ? fs.readFileSync(local, 'utf8') : await (await fetch(`${WEB}llms.txt`)).text()
     return out(text, { ok: true, docs: text })
   }
 
   if (command === 'list') {
     let list = await gallery()
     if (flags.tag) list = list.filter(t => t.tags?.includes(String(flags.tag).toLowerCase()))
-    return out(`${list.length} theme${list.length === 1 ? '' : 's'}${flags.tag ? ` tagged ${flags.tag}` : ''}. Previews: ${SITE}\n\n${table(list)}\n\nUse one: ${NPX} use <id>`, { ok: true, count: list.length, themes: list })
+    return out(`${list.length} theme${list.length === 1 ? '' : 's'}${flags.tag ? ` tagged ${flags.tag}` : ''}. Previews: ${WEB}\n\n${table(list)}\n\nUse one: ${NPX} use <id>`, { ok: true, count: list.length, themes: list })
   }
 
   if (command === 'search') {
@@ -224,7 +226,7 @@ async function main() {
   if (command === 'current') {
     const pick = readPick()
     if (!pick?.id) return out('Nothing picked yet: the loader shows its default scene.', { ok: true, current: null })
-    return out(`${pick.off ? 'Off (last pick: ' : ''}${pick.name} by @${pick.author}${pick.off ? ')' : ''}  ${SITE}t/${pick.id}/`, { ok: true, current: { id: pick.id, name: pick.name, author: pick.author, off: Boolean(pick.off), at: pick.at } })
+    return out(`${pick.off ? 'Off (last pick: ' : ''}${pick.name} by @${pick.author}${pick.off ? ')' : ''}  ${WEB}t/${pick.id}/`, { ok: true, current: { id: pick.id, name: pick.name, author: pick.author, off: Boolean(pick.off), at: pick.at } })
   }
 
   if (command === 'off' || command === 'on') {

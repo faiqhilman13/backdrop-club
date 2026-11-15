@@ -8,6 +8,11 @@ export function pages(config) {
   const install = `/plugin install ${plugin} --marketplace ${repo}`
   const use = id => `/${command} ${id}`
   const github = `https://github.com/${repo}`
+  // The build is also reachable at its origin (GitHub Pages); people who land there move to the short address.
+  const api = config.api ? new URL(config.api) : null
+  const legacy = api && api.origin !== origin
+    ? `<script>if(location.hostname===${JSON.stringify(api.hostname)}){location.replace(${JSON.stringify(origin)}+${JSON.stringify(base.replace(/\/$/, ''))}+location.pathname.slice(${JSON.stringify(api.pathname.replace(/\/$/, ''))}.length)+location.search+location.hash)}</script>`
+    : ''
 
   const icon = `<svg class="logo-mark" viewBox="0 0 16 16" aria-hidden="true" shape-rendering="crispEdges"><rect x="5" y="3" width="6" height="1"/><rect x="4" y="4" width="8" height="1"/><rect x="3" y="5" width="10" height="2"/><rect x="3" y="8" width="10" height="1"/><rect x="4" y="10" width="8" height="1"/><rect x="0" y="12" width="16" height="1"/><rect x="2" y="14" width="12" height="1"/></svg>`
 
@@ -18,6 +23,7 @@ export function pages(config) {
 <html lang="en">
 <head>
 <meta charset="utf-8">
+${legacy}
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(full)}</title>
 <meta name="description" content="${esc(description)}">
