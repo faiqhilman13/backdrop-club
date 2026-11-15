@@ -1,6 +1,9 @@
 {
   "name": "backdrop-club",
-  "owner": { "name": "faiqhilman13" },
+  "description": "Community backdrops for the Claude desktop app, from the Backdrop Club gallery",
+  "owner": {
+    "name": "faiqhilman13"
+  },
   "plugins": [
     {
       "name": "backdrop-club",
