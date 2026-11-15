@@ -146,12 +146,38 @@ async function main() {
   else url = gh('pr', 'create', '--head', branch, '--base', 'main', '--title', `Add theme: ${form.name}`, '--body', prBody)
 
   label(repo, issue.number, NEEDS, false)
-  comment(repo, issue.number, [
-    `Thanks @${author}! **${form.name}** passed every check. ${scoreLine}`,
-    '',
-    `It's in ${url}. Once it's merged it goes live at ${site}t/${id}/ and anyone can use it with \`/${config.command} ${id}\`.`,
-  ].join('\n'))
-  console.log(`Opened ${url}`)
+
+  // Trusted authors skip the wait: the maintainer, and anyone with a theme already in the gallery.
+  // A first-time contributor's theme waits for a maintainer to look at it.
+  const policy = config.autoMerge ?? 'off'
+  const owner = repo.split('/')[0].toLowerCase()
+  const hasTheme = fs.readdirSync(path.join(ROOT, 'themes')).some(other => {
+    try {
+      const d = JSON.parse(fs.readFileSync(path.join(ROOT, 'themes', other, 'theme.json'), 'utf8'))
+      return String(d.author).toLowerCase() === author.toLowerCase() && d.issue !== issue.number
+    } catch { return false }
+  })
+  const trusted = policy === 'all' || (policy === 'trusted' && (author.toLowerCase() === owner || hasTheme))
+  let merged = false
+  if (trusted) {
+    for (let attempt = 0; attempt < 8 && !merged; attempt++) {
+      try { gh('pr', 'merge', url, '--squash', '--delete-branch'); merged = true } catch { await new Promise(resolve => setTimeout(resolve, 5000)) }
+    }
+    // A merge made by the bot doesn't start other workflows on its own, so it asks for the deploy.
+    if (merged) gh('workflow', 'run', 'deploy.yml', '--ref', 'main')
+  }
+  comment(repo, issue.number, merged
+    ? [
+        `Thanks @${author}! **${form.name}** passed every check and is merged (${url}). ${scoreLine}`,
+        '',
+        `It goes live in about a minute at ${site}t/${id}/, and anyone can use it with \`/${config.command} ${id}\`.`,
+      ].join('\n')
+    : [
+        `Thanks @${author}! **${form.name}** passed every check. ${scoreLine}`,
+        '',
+        `It's in ${url}. A maintainer takes a look, and once it's merged it goes live at ${site}t/${id}/ and anyone can use it with \`/${config.command} ${id}\`.`,
+      ].join('\n'))
+  console.log(merged ? `Merged ${url}` : `Opened ${url}`)
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

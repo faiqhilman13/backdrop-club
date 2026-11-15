@@ -97,39 +97,114 @@ function ditherTo(rgb, palette, x, y) {
   return t > bayer(x, y) ? b : a
 }
 
-/** The pixels of `image` that fill a cols-by-rows strip, cropped like CSS cover, with `focus` 0 (top) to 1 (bottom). */
-export function sample(image, cols, rows, focus) {
-  const canvas = document.createElement('canvas')
-  canvas.width = cols
-  canvas.height = rows
-  const ctx = canvas.getContext('2d', { willReadFrequently: true })
+/** The whole picture, smaller: what the maker reads every setting from. */
+export function prepare(image, maxW = 320) {
   const iw = image.naturalWidth || image.width
   const ih = image.naturalHeight || image.height
-  const scale = Math.max(cols / iw, rows / ih)
-  const sw = cols / scale
-  const sh = rows / scale
-  const sx = (iw - sw) / 2
-  const sy = (ih - sh) * focus
+  const w = Math.min(maxW, iw)
+  const h = Math.max(8, Math.round((ih * w) / iw))
+  const canvas = document.createElement('canvas')
+  canvas.width = w
+  canvas.height = h
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
   ctx.imageSmoothingQuality = 'high'
-  ctx.drawImage(image, sx, sy, sw, sh, 0, 0, cols, rows)
-  return ctx.getImageData(0, 0, cols, rows).data
+  ctx.drawImage(image, 0, 0, w, h)
+  return { data: ctx.getImageData(0, 0, w, h).data, w, h }
 }
 
-/** Otsu's threshold over the picture's lightness: where its land and sky part. */
-export function autoCut(pixels) {
-  const hist = new Array(256).fill(0)
-  for (let i = 0; i < pixels.length; i += 4) hist[Math.round(lum([pixels[i], pixels[i + 1], pixels[i + 2]]) ** (1 / 2.2) * 255)] += 1
-  const total = pixels.length / 4
-  let sum = 0; for (let i = 0; i < 256; i++) sum += i * hist[i]
-  let sumB = 0; let wB = 0; let best = 0; let cut = 128
-  for (let i = 0; i < 256; i++) {
-    wB += hist[i]; if (!wB) continue
-    const wF = total - wB; if (!wF) break
-    sumB += i * hist[i]
-    const between = wB * wF * (sumB / wB - (sum - sumB) / wF) ** 2
-    if (between > best) { best = between; cut = i }
+function topColour(p) {
+  const rows = Math.max(1, Math.round(p.h * 0.06))
+  const r = []; const g = []; const b = []
+  for (let y = 0; y < rows; y++) for (let x = 0; x < p.w; x += 2) { const i = (y * p.w + x) * 4; r.push(p.data[i]); g.push(p.data[i + 1]); b.push(p.data[i + 2]) }
+  const mid = a => a.sort((m, n) => m - n)[a.length >> 1]
+  return [mid(r), mid(g), mid(b)]
+}
+
+/**
+ * Where the sky ends in each column of the picture, as one smooth line.
+ *
+ * Every pixel gets a sky score: blue sky, cool-white cloud, or the colour at the top of the picture
+ * score high; warm pixels (rock, earth, trees, buildings) score low, which is what tells a white
+ * cloud from sunlit granite. Then the line with sky above it and land below, that bends least from
+ * column to column, is found by dynamic programming, so stray clouds don't punch holes in it.
+ * `strictness` 0..1: higher calls more of the picture land.
+ * @returns {{ line: Int16Array, confidence: number }} confidence 0..1: how clearly sky and land part
+ */
+export function findSkyline(p, strictness = 0.5) {
+  const { w, h, data } = p
+  const top = topColour(p)
+  // Texture: how much each pixel differs from its neighbours, averaged over three by three.
+  // Sky is smooth; rock, trees and buildings are not, even when they are bright or warm.
+  const light = new Float32Array(w * h)
+  for (let i = 0, j = 0; j < w * h; i += 4, j++) light[j] = (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) / 255
+  const edge = new Float32Array(w * h)
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const j = y * w + x
+    edge[j] = Math.abs(light[j] - light[x < w - 1 ? j + 1 : j]) + Math.abs(light[j] - light[y < h - 1 ? j + w : j])
   }
-  return Math.round((cut / 255) * 100)
+  const texture = new Float32Array(w * h)
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    let sum = 0
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) sum += edge[Math.min(h - 1, Math.max(0, y + dy)) * w + Math.min(w - 1, Math.max(0, x + dx))]
+    texture[y * w + x] = sum / 9
+  }
+  const topLight = (0.2126 * top[0] + 0.7152 * top[1] + 0.0722 * top[2]) / 255
+  const score = new Float32Array(w * h)
+  for (let i = 0, j = 0; j < w * h; i += 4, j++) {
+    const r = data[i]; const g = data[i + 1]; const b = data[i + 2]
+    const max = Math.max(r, g, b)
+    const smooth = texture[j] < 0.035
+    let sky = b > 90 ? Math.min(1, Math.max(0, (b - r - 10) / 50)) : 0
+    if (b >= r + 3 && max > 185 && max - Math.min(r, g, b) < 60) sky = Math.max(sky, 0.85)
+    sky = Math.max(sky, Math.max(0, 1 - Math.hypot(r - top[0], g - top[1], b - top[2]) / 90) * 0.8)
+    if (smooth && light[j] > topLight * 0.55) sky = Math.max(sky, 0.7)
+    if (r > b + 6 && !smooth) sky *= 0.25
+    score[j] = sky
+  }
+  // cost[s][x]: calling rows above s sky and the rest land, in column x.
+  const H = h + 1
+  const cost = new Float32Array(H * w)
+  for (let x = 0; x < w; x++) {
+    let total = 0
+    for (let y = 0; y < h; y++) total += score[y * w + x]
+    let above = 0
+    for (let s = 0; s <= h; s++) {
+      cost[s * w + x] = (s - above) * (1.5 - strictness) + (total - above) * (0.5 + strictness)
+      if (s < h) above += score[s * w + x]
+    }
+  }
+  // Big jumps are allowed (a building's side) but cost more the bigger they are.
+  const maxStep = Math.max(3, Math.round(h / 5))
+  const bend = (0.08 * h) / 40
+  let acc = new Float32Array(H)
+  for (let s = 0; s < H; s++) acc[s] = cost[s * w]
+  const back = new Int16Array(H * w)
+  for (let x = 1; x < w; x++) {
+    const next = new Float32Array(H)
+    for (let s = 0; s < H; s++) {
+      let best = Infinity
+      let from = s
+      for (let d = -maxStep; d <= maxStep; d++) {
+        const t = s - d
+        if (t < 0 || t >= H) continue
+        const c = acc[t] + bend * Math.abs(d)
+        if (c < best) { best = c; from = t }
+      }
+      next[s] = best + cost[s * w + x]
+      back[s * w + x] = from
+    }
+    acc = next
+  }
+  let s = 0
+  for (let k = 1; k < H; k++) if (acc[k] < acc[s]) s = k
+  const line = new Int16Array(w)
+  line[w - 1] = s
+  for (let x = w - 1; x > 0; x--) { s = back[s * w + x]; line[x - 1] = s }
+  // How clearly the two sides differ: the mean sky score above the line minus below it.
+  let up = 0; let upN = 0; let down = 0; let downN = 0
+  for (let x = 0; x < w; x += 2) for (let y = 0; y < h; y += 2) { if (y < line[x]) { up += score[y * w + x]; upN++ } else { down += score[y * w + x]; downN++ } }
+  const confidence = Math.max(0, (upN ? up / upN : 0) - (downN ? down / downN : 1))
+  return { line, confidence }
 }
 
 function rand(seed) {
@@ -137,17 +212,23 @@ function rand(seed) {
   return () => { s = (s + 0x6d2b79f5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296 }
 }
 
+const mixHex = (a, b, t) => toHex(hex(a).map((v, i) => v + (hex(b)[i] - v) * t))
+
 /**
- * Makes the backdrop.
- * @param {Uint8ClampedArray} pixels from `sample`
- * @param {{ cols: number, rows: number, mode: 'silhouette' | 'photo', palette: string, cut: number, stars: boolean, lights: boolean }} o
- * @returns {{ svg: string, colours: number }}
+ * Makes the backdrop from a picture `prepare` read.
+ *
+ * The part of the picture where land meets sky is found and laid along the window's foot: its
+ * width over the middle of the window (what every window shape shows), its height into the art
+ * band. Beyond the picture's edges the ridge carries on, easing down, for wide windows.
+ * @param {{ data: Uint8ClampedArray, w: number, h: number }} p
+ * @param {{ cols: number, rows: number, mode: 'silhouette' | 'photo', palette: string, cut: number, focus: number, stars: boolean, lights: boolean }} o
+ * @returns {{ svg: string, colours: number, found: boolean }}
  */
-export function makeBackdrop(pixels, o) {
+export function makeBackdrop(p, o) {
   const { cols, rows } = o
   const s = W / cols
   const top = H - rows * s
-  const fade = Math.max(2, Math.round(rows * 0.28))
+  const fade = Math.max(2, Math.round(rows * 0.24))
   const index = new Uint8Array(cols * rows) // 0 is the page
   let dayInks
   let nightInks
@@ -156,69 +237,135 @@ export function makeBackdrop(pixels, o) {
   // Bright colours stay below the line where chat text ends (the prompt box sits there).
   const low = Math.ceil((134 - top) / s)
 
+  // Where land meets sky in the picture, and the band of it to keep.
+  const { line, confidence } = findSkyline(p, o.cut / 100)
+  const land = [...line].filter(v => v < p.h).sort((a, c) => a - c)
+  const found = confidence > 0.3 && land.length > p.w * 0.25
+  const hi = found ? land[Math.floor(land.length * 0.04)] : p.h * 0.4
+  const lo = found ? land[Math.floor(land.length * 0.92)] : p.h * 0.75
+  let zoneH = Math.min(p.h, Math.max((lo - hi) * 1.35, p.h * 0.14))
+  let z0 = hi - zoneH * 0.06 + ((o.focus ?? 0.6) - 0.6) * zoneH
+  z0 = Math.max(0, Math.min(p.h - zoneH, z0))
+  zoneH = Math.min(zoneH, p.h - z0)
+  // The highest peak sits just under the dissolve at the band's top.
+  const head = Math.round(fade * 0.55)
+  const landRows = rows - head
+  const sY = landRows / zoneH
+  // The picture fills the middle of the window, the part every window shape shows.
+  const span = Math.round(Math.min(cols * 0.56, Math.max(cols * 0.42, p.w * sY * 0.9)))
+  const x0 = Math.round((cols - span) / 2)
+  const sX = p.w / span
+  const rowOf = py => head + (py - z0) * sY
+  const pixelAt = (X, Y) => {
+    const px = Math.min(p.w - 1, Math.max(0, Math.floor((X - x0 + 0.5) * sX)))
+    const py = Math.min(p.h - 1, Math.max(0, Math.floor(z0 + (Y - head + 0.5) / sY)))
+    const i = (py * p.w + px) * 4
+    return [p.data[i], p.data[i + 1], p.data[i + 2]]
+  }
+
+  // The ridge in output rows, column by column; beyond the picture it eases down with a little noise.
+  const ridge = new Float32Array(cols)
+  for (let X = 0; X < span; X++) {
+    const a = Math.floor(X * sX)
+    const c = Math.max(a + 1, Math.floor((X + 1) * sX))
+    let m = p.h
+    for (let px = a; px < c && px < p.w; px++) m = Math.min(m, line[px])
+    ridge[x0 + X] = m >= p.h ? rows : rowOf(m)
+  }
+  const base = Math.max(head + 2, rows * 0.6)
+  const wobble = Array.from({ length: cols }, () => random())
+  const smoothNoise = X => (wobble[Math.max(0, X - 1)] + wobble[X] * 2 + wobble[Math.min(cols - 1, X + 1)]) / 4
+  for (let X = 0; X < x0; X++) {
+    const t = (x0 - X) / Math.max(1, x0)
+    const ease = t * t * (3 - 2 * t)
+    ridge[X] = ridge[x0] + (base - ridge[x0]) * ease + (smoothNoise(X) - 0.5) * rows * 0.12 * ease
+  }
+  for (let X = x0 + span; X < cols; X++) {
+    const t = (X - (x0 + span - 1)) / Math.max(1, cols - (x0 + span))
+    const ease = t * t * (3 - 2 * t)
+    const edge = ridge[x0 + span - 1]
+    ridge[X] = edge + (base - edge) * ease + (smoothNoise(X) - 0.5) * rows * 0.12 * ease
+  }
+
   if (o.mode === 'silhouette') {
-    const p = PALETTES[o.palette] ?? PALETTES.dawn
-    // Inks: 1..3 sky bands (index 1 = page-ish top sky), 4 far land, 5 land.
-    dayInks = [p.day.sky[0], p.day.sky[1], p.day.sky[2], p.day.far, p.day.land]
-    nightInks = [p.night.sky[0], p.night.sky[1], p.night.sky[2], p.night.far, p.night.land]
-    const cut = o.cut / 100
-    const land = new Int16Array(cols).fill(rows)
-    const far = new Int16Array(cols).fill(rows)
-    for (let x = 0; x < cols; x++) {
-      for (let y = 0; y < rows; y++) {
-        const i = (y * cols + x) * 4
-        const l = lum([pixels[i], pixels[i + 1], pixels[i + 2]]) ** (1 / 2.2)
-        if (l < cut) { land[x] = y; break }
-      }
-      for (let y = 0; y < rows; y++) {
-        const i = (y * cols + x) * 4
-        const l = lum([pixels[i], pixels[i + 1], pixels[i + 2]]) ** (1 / 2.2)
-        if (l < Math.min(0.97, cut + 0.18)) { far[x] = y; break }
-      }
-    }
-    // Lone pixels in the outline read as noise: smooth them away.
-    const smooth = a => a.map((v, x) => [a[x - 1] ?? v, v, a[x + 1] ?? v].sort((m, n) => m - n)[1])
-    const landS = smooth(land)
-    const farS = smooth(far)
-    const horizon = Math.min(...landS)
-    for (let y = 0; y < rows; y++) {
-      for (let x = 0; x < cols; x++) {
+    const pal = PALETTES[o.palette] ?? PALETTES.dawn
+    // Inks: 1..3 sky bands (1 is the page), then land in three tones: light rock, mid, deep.
+    dayInks = [pal.day.sky[0], pal.day.sky[1], pal.day.sky[2], mixHex(pal.day.far, PAGE.day, 0.5), pal.day.far, pal.day.land]
+    nightInks = [pal.night.sky[0], pal.night.sky[1], pal.night.sky[2], mixHex(pal.night.far, pal.night.sky[2], 0.45), pal.night.far, pal.night.land]
+    // Land tones follow the picture's own light and shade, split into thirds.
+    const lights = []
+    for (let X = x0; X < x0 + span; X++) for (let Y = Math.max(0, Math.ceil(ridge[X])); Y < rows; Y++) lights.push(lum(pixelAt(X, Y)))
+    lights.sort((a, c) => a - c)
+    const t1 = lights[Math.floor(lights.length / 3)] ?? 0.2
+    const t2 = lights[Math.floor((lights.length * 2) / 3)] ?? 0.4
+    const peaks = Array.from(ridge).filter(v => v < rows)
+    const horizon = Math.max(head + 1, peaks.length ? Math.min(...peaks) : rows * 0.6)
+    for (let Y = 0; Y < rows; Y++) {
+      for (let X = 0; X < cols; X++) {
         let ink
-        if (y >= landS[x]) ink = 5
-        else if (y >= farS[x]) ink = 4
-        else {
+        if (Y >= ridge[X]) {
+          if (X < x0 || X >= x0 + span) ink = Y - ridge[X] < 2 ? 5 : 6
+          else {
+            const L = lum(pixelAt(X, Y))
+            // Near a threshold the tone is dithered, so cliff faces and forest keep their shape.
+            const level = L > t2 ? 0 : L > t1 ? 1 : 2
+            const edge = L > t2 ? (L - t2) / Math.max(0.01, 1 - t2) : L > t1 ? (L - t1) / Math.max(0.01, t2 - t1) : L / Math.max(0.01, t1)
+            const nudge = level > 0 && edge > 0.6 + bayer(X, Y) * 0.4 ? -1 : 0
+            ink = 4 + Math.max(0, level + nudge)
+          }
+        } else {
           // Sky: page at the top, warming to the horizon.
-          const t = Math.min(1, y / Math.max(1, Math.max(horizon, rows * 0.6)))
-          const level = t * 2.2
-          const base = Math.floor(level)
-          ink = 1 + Math.min(2, base + (level - base > bayer(x, y) ? 1 : 0))
+          const t = Math.min(1, Y / Math.max(1, horizon + 2))
+          const level = t * t * 1.7
+          const step = Math.floor(level)
+          ink = 1 + Math.min(2, step + (level - step > bayer(X, Y) ? 1 : 0))
         }
-        index[y * cols + x] = ink === 1 ? 0 : ink
+        index[Y * cols + X] = ink === 1 ? 0 : ink
       }
     }
     if (o.lights) {
       const lit = []
-      for (let x = 0; x < cols; x++) for (let y = Math.max(landS[x] + 2, low); y < rows - 1; y++) if (random() < 0.04 && (x + y) % 2 === 0) lit.push([x, y])
-      nightOnly.push({ fill: p.night.lights, cells: lit })
+      for (let X = 0; X < cols; X++) for (let Y = Math.max(Math.ceil(ridge[X]) + 2, low); Y < rows - 1; Y++) if (random() < 0.04 && (X + Y) % 2 === 0) lit.push([X, Y])
+      nightOnly.push({ fill: pal.night.lights, cells: lit })
     }
   } else {
-    // Photo: the picture's own colours, softened by day and deepened by night.
+    // Photo: the same skyline, with the picture's own colours on the land and a soft sky of its own colour above.
     const k = 5
-    const palette = quantize(pixels, k)
+    const cells = []
+    for (let X = x0; X < x0 + span; X++) for (let Y = Math.max(head, Math.ceil(ridge[X])); Y < rows; Y++) { const c = pixelAt(X, Y); cells.push(c[0], c[1], c[2], 255) }
+    const palette = quantize(Uint8ClampedArray.from(cells.length ? cells : [128, 128, 128, 255]), k)
     const share = new Array(k).fill(0)
-    for (let y = 0; y < rows; y++) {
-      for (let x = 0; x < cols; x++) {
-        const i = (y * cols + x) * 4
-        const c = ditherTo([pixels[i], pixels[i + 1], pixels[i + 2]], palette, x, y)
-        index[y * cols + x] = c === k - 1 && y < low ? k + 1 : c + 1
-        share[c] += 1
+    const skyRgb = topColour(p)
+    const peaks = Array.from(ridge).filter(v => v < rows)
+    const horizon = Math.max(head + 1, peaks.length ? Math.min(...peaks) : rows * 0.6)
+    // Inks 1..k the picture's colours; k+1 its brightest kept dim up high; k+2, k+3 the sky.
+    for (let Y = 0; Y < rows; Y++) {
+      for (let X = 0; X < cols; X++) {
+        if (Y >= ridge[X]) {
+          if (X >= x0 && X < x0 + span) {
+            const c = ditherTo(pixelAt(X, Y), palette, X, Y)
+            index[Y * cols + X] = c === k - 1 && Y < low ? k + 1 : c + 1
+            share[c] += 1
+          } else {
+            index[Y * cols + X] = 2 // a middle colour of the picture carries the ridge on
+          }
+        } else {
+          const t = Math.min(1, Y / Math.max(1, horizon + 2))
+          const level = t * t * 1.7
+          const step = Math.floor(level)
+          const band = Math.min(2, step + (level - step > bayer(X, Y) ? 1 : 0))
+          index[Y * cols + X] = band === 0 ? 0 : k + 1 + band
+        }
       }
     }
     // The brightest colour may glow at night, if it is a small part of the picture.
     const brightest = k - 1
-    const glow = share[brightest] / (cols * rows) < 0.12
-    dayInks = [...palette.map(c => toHex(pastel(c))), toHex(pastel(palette[brightest]))]
-    nightInks = [...palette.map((c, i) => toHex(deep(c, glow && i === brightest))), toHex(deep(palette[brightest], false))]
+    // Only a sprinkle of bright pixels (lit windows, lamps) may glow at night; a bright cliff stays dark.
+    const glow = share[brightest] / Math.max(1, span * rows) < 0.04
+    const skyDay = toHex(pastel(skyRgb))
+    const skyNight = toHex(deep(skyRgb, false))
+    dayInks = [...palette.map(c => toHex(pastel(c))), toHex(pastel(palette[brightest])), mixHex(skyDay, PAGE.day, 0.55), skyDay]
+    nightInks = [...palette.map((c, i) => toHex(deep(c, glow && i === brightest))), toHex(deep(palette[brightest], false)), mixHex(skyNight, PAGE.night, 0.5), skyNight]
   }
 
   // The top rows dissolve into the page, so the art never draws a hard line across the window.
@@ -267,7 +414,7 @@ export function makeBackdrop(pixels, o) {
     + `<g class="d"><rect width="${W}" height="${H}" fill="${PAGE.day}"/><g stroke-width="${sw}" fill="none">${uses(dayInks)}</g></g>`
     + `<g class="n"><rect width="${W}" height="${H}" fill="${PAGE.night}"/>${stars}<g stroke-width="${sw}" fill="none">${uses(nightInks)}</g>${extra}</g>`
     + `</svg>`
-  return { svg, colours: runs.size }
+  return { svg, colours: runs.size, found }
 }
 
 /** A made-up skyline to try the maker with, drawn on a canvas. */

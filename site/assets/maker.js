@@ -1,6 +1,6 @@
 // The Make page: a photo in, a backdrop out, checked as the gallery checks it.
 import { check, forceScheme, LIMIT } from './check.mjs'
-import { PALETTES, autoCut, makeBackdrop, sample, sampleImage, W, H } from './dither.js'
+import { PALETTES, makeBackdrop, prepare, sampleImage, W, H } from './dither.js'
 import { measure } from './readability.js'
 
 const form = document.querySelector('.maker-form')
@@ -12,6 +12,7 @@ const [lightImg, darkImg] = document.querySelectorAll('.maker-preview img')
 const buttons = Object.fromEntries([...document.querySelectorAll('[data-action]')].map(b => [b.dataset.action, b]))
 
 let picture = null
+let prepared = null
 let current = ''
 let job = 0
 
@@ -32,8 +33,8 @@ const value = name => {
 
 function outputs() {
   form.querySelector('[data-for="height"]').textContent = `${value('height')}% of the window`
-  form.querySelector('[data-for="focus"]').textContent = Number(value('focus')) < 34 ? 'top of photo' : Number(value('focus')) > 66 ? 'bottom of photo' : 'middle'
-  form.querySelector('[data-for="cut"]').textContent = value('cut')
+  form.querySelector('[data-for="focus"]').textContent = Number(value('focus')) < 45 ? 'higher' : Number(value('focus')) > 75 ? 'lower' : 'on the skyline'
+  form.querySelector('[data-for="cut"]').textContent = Number(value('cut')) < 35 ? 'loose' : Number(value('cut')) > 65 ? 'strict' : 'normal'
   const isSilhouette = value('mode') === 'silhouette'
   for (const el of form.querySelectorAll('.silhouette-only')) el.hidden = !isSilhouette
 }
@@ -47,45 +48,41 @@ function options() {
 
 const dataUrl = svg => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
 
-async function draw({ recut = false } = {}) {
+async function draw() {
   outputs()
-  if (!picture) return
+  if (!prepared) return
   const mine = ++job
   const o = options()
-  const pixels = sample(picture, o.cols, o.rows, o.focus)
-  if (recut && o.mode === 'silhouette') {
-    form.elements.cut.value = String(Math.min(90, Math.max(10, autoCut(pixels))))
-    o.cut = Number(form.elements.cut.value)
-    outputs()
-  }
-  const { svg, colours } = makeBackdrop(pixels, o)
+  const { svg, colours, found } = makeBackdrop(prepared, o)
   current = svg
   lightImg.src = dataUrl(forceScheme(svg, 'light'))
   darkImg.src = dataUrl(forceScheme(svg, 'dark'))
   buttons.download.disabled = false
 
   const rules = check(svg)
-  report.innerHTML = `<ul><li class="${rules.ok ? '' : 'bad'}">${rules.ok ? 'Passes the gallery rules' : rules.errors[0]}</li><li class="${svg.length > LIMIT ? 'bad' : ''}"><span><span class="score">${Math.round(svg.length / 1000)} KB</span> · ${colours} colours</span></li><li class="warn">Checking readability…</li></ul>`
+  const skyNote = found ? '' : '<li class="warn">No clear skyline in this photo, so the land is a guess. Try moving Sky detection, or the Photo style.</li>'
+  report.innerHTML = `<ul><li class="${rules.ok ? '' : 'bad'}">${rules.ok ? 'Passes the gallery rules' : rules.errors[0]}</li><li class="${svg.length > LIMIT ? 'bad' : ''}"><span><span class="score">${Math.round(svg.length / 1000)} KB</span> · ${colours} colours</span></li>${skyNote}<li class="warn">Checking readability…</li></ul>`
   const score = await measure(svg)
   if (mine !== job) return
   const line = score.ok
     ? `<li>Chat stays readable: <span class="score">${score.light.contrast}:1</span> in light, <span class="score">${score.dark.contrast}:1</span> in dark${score.grade === 'clean' ? ' · <span class="badge">Reads clean</span>' : ''}</li>`
     : `<li class="bad">Too little contrast behind chat text (<span class="score">${score.light.contrast}:1</span> light, <span class="score">${score.dark.contrast}:1</span> dark; needs 4.5:1). Lower the height or try Silhouette.</li>`
-  report.querySelector('li.warn').outerHTML = line
+  report.querySelector('li.warn:last-child').outerHTML = line
   buttons.submit.disabled = !(rules.ok && score.ok)
 }
 
 let pending = 0
-const later = (opts) => { cancelAnimationFrame(pending); pending = requestAnimationFrame(() => draw(opts)) }
-form.addEventListener('input', event => later({ recut: event.target.name === 'focus' && false }))
-form.addEventListener('change', event => { if (event.target.name === 'mode' || event.target.name === 'detail') later({ recut: true }) })
+const later = () => { cancelAnimationFrame(pending); pending = requestAnimationFrame(() => draw()) }
+form.addEventListener('input', later)
+form.addEventListener('change', later)
 
 function use(image, name) {
   picture = image
+  prepared = prepare(image)
   drop.classList.add('has')
   drop.querySelector('strong').textContent = name
   drop.querySelector('span').textContent = 'Choose another, or drop one here.'
-  draw({ recut: true })
+  draw()
 }
 
 function open(fileObject) {

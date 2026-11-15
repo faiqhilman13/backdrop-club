@@ -240,15 +240,15 @@ ${more.length ? `<section class="gallery more"><h2 class="section-title">More ba
   </div>
   <div class="tool-grid">
     <form class="panel maker-form" autocomplete="off">
-      <label class="drop" tabindex="0"><input type="file" accept="image/*" hidden><strong>Choose a photo</strong><span>or drop one here. Wide shots of skylines, coasts and mountains work best.</span></label>
+      <label class="drop" tabindex="0"><input type="file" accept="image/*" hidden><strong>Choose a photo</strong><span>or drop one here. Anything with a skyline works: cities, mountains, coasts.</span></label>
       <div class="field"><span class="label">Style</span><div class="seg" role="radiogroup"><label><input type="radio" name="mode" value="silhouette" checked><span>Silhouette</span></label><label><input type="radio" name="mode" value="photo"><span>Photo</span></label></div></div>
       <div class="field"><span class="label">Colours</span><div class="swatches" role="radiogroup"></div></div>
       <label class="field"><span class="label">Height <output data-for="height"></output></span><input type="range" name="height" min="22" max="42" value="32"></label>
       <label class="field"><span class="label">Framing <output data-for="focus"></output></span><input type="range" name="focus" min="0" max="100" value="60"></label>
-      <label class="field silhouette-only"><span class="label">Skyline cut <output data-for="cut"></output></span><input type="range" name="cut" min="5" max="95" value="50"></label>
+      <label class="field"><span class="label">Sky detection <output data-for="cut"></output></span><input type="range" name="cut" min="5" max="95" value="50"></label>
       <div class="field"><span class="label">Pixels</span><div class="seg" role="radiogroup"><label><input type="radio" name="detail" value="128"><span>Chunky</span></label><label><input type="radio" name="detail" value="256" checked><span>Fine</span></label></div></div>
       <label class="check"><input type="checkbox" name="stars" checked><span>Stars at night</span></label>
-      <label class="check silhouette-only"><input type="checkbox" name="lights" checked><span>Window lights at night</span></label>
+      <label class="check silhouette-only"><input type="checkbox" name="lights"><span>Window lights at night (for cities)</span></label>
     </form>
     <div class="tool-out">
       <div class="maker-preview">${win({ id: 'preview' }, { size: 'big', eager: true, srcLight: `${base}t/${config.defaultTheme}/light.svg`, srcDark: `${base}t/${config.defaultTheme}/dark.svg` })}</div>

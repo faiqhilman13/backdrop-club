@@ -6,6 +6,7 @@ permissions:
   contents: write
   pull-requests: write
   issues: write
+  actions: write
 concurrency:
   group: submission-${{ github.event.issue.number }}
   cancel-in-progress: true

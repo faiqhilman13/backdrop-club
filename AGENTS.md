@@ -51,6 +51,8 @@ No package dependencies. Node 22 for the tools, Chrome or Chromium for `--render
 
 ## Maintaining the gallery
 
+- **Approvals:** `autoMerge` in `site/config.json` is `trusted`: the bot merges a submission that passes every check when its author is the repository's owner or already has a theme in the gallery, and starts the deploy itself. Anyone else's first theme waits for a maintainer to merge its pull request. `off` makes every theme wait; `all` merges everything that passes.
+
 - **Taking a theme down:** delete its `themes/<id>/` folder and add `{ "id": "<id>", "reason": "...", "date": "YYYY-MM-DD" }` to `site/revoked.json`, then push. The id can't be reused, the theme leaves the site, and installed loaders drop it within a few hours (they check `api/v1/index.json`'s `revoked` list).
 - **Updating a theme:** change its `backdrop.svg` and push. Its fingerprint (`hash` in the API) changes, and loaders that kept the old copy fetch the new one within a few hours.
 - **Builds:** readability scores and share images are cached under `.cache/render/`, keyed by each theme's fingerprint (and by the code that made them), locally and in CI. A push renders only new or changed themes. Delete `.cache/` to start over.

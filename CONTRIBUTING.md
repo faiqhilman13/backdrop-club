@@ -35,7 +35,7 @@ Add a folder `themes/<id>/` with two files:
 - It passes the checks: the [rules](https://backdrop-club.netlify.app/guide/#rules) are in the guide.
 - A distinct scene, not a recolour of an existing theme.
 
-A maintainer reviews every theme before it's merged. Ids are first come, first served.
+A maintainer reviews your first theme before it's merged. After that, themes from you that pass every check go live on their own within a couple of minutes. Ids are first come, first served.
 
 ## Changing the code
 
