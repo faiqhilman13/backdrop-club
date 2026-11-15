@@ -11,5 +11,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache/render
+          key: render-${{ github.run_id }}
+          restore-keys: render-
       - name: Every theme follows the rules and keeps chat readable
         run: node tools/build.mjs --render --check

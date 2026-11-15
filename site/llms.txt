@@ -33,7 +33,7 @@ Run as `npx -y github:faiqhilman13/backdrop-club <command>`. Every command takes
 | `submit <file.svg> --name <name> [--description <text>] [--tags a,b] [--yes]` | Opens a public submission issue under the person's GitHub account with `gh`. Without `--yes` it only shows what it would send. Ask the person before adding `--yes` |
 | `docs` | Prints this guide |
 
-How `use` works: it writes `~/.config/backdrop-club/current.json` (or under `$XDG_CONFIG_HOME`), with the theme's id, name, author and SVG. The loader reads that file and checks the SVG again before drawing it.
+How `use` works: it writes `~/.config/backdrop-club/current.json` (or under `$XDG_CONFIG_HOME`), with the theme's id, name, author, fingerprint and SVG. The loader reads that file and checks the SVG again before drawing it. A few hours apart, the loader also asks the gallery whether the picked theme was updated (it fetches the new version) or taken down (it goes back to its default).
 
 ## Inside Claude Code
 
@@ -47,12 +47,14 @@ Once the loader is installed, the person can type `/backdrop <id>`, `/backdrop r
 
 ## Read-only JSON API
 
-No key needed. Served by GitHub Pages; cache freely.
+No key needed. Served by GitHub Pages; cache freely. Version 1:
 
-- `GET https://faiqhilman13.github.io/backdrop-club/api/index.json` → `{ updated, count, themes: [{ id, name, author, description, tags, added }] }`
-- `GET https://faiqhilman13.github.io/backdrop-club/api/themes/<id>.json` → `{ id, name, author, description, tags, license, svg }`
+- `GET https://faiqhilman13.github.io/backdrop-club/api/v1/index.json` → `{ version, updated, count, themes: [{ id, name, author, description, tags, added, hash }], revoked: [id] }`. `hash` changes when a theme's file changes; `revoked` lists themes taken down, which clients should stop showing.
+- `GET https://faiqhilman13.github.io/backdrop-club/api/v1/themes/<id>.json` → `{ id, name, author, description, tags, license, hash, svg }`
 - `GET https://faiqhilman13.github.io/backdrop-club/t/<id>/backdrop.svg` (follows light or dark mode), `light.svg`, `dark.svg`
 - `GET https://faiqhilman13.github.io/backdrop-club/og/<id>.png`: 1200x630 preview, light and dark split diagonally
+
+The unversioned `api/index.json` and `api/themes/<id>.json` stay for loaders installed before v1.
 
 ## Making a theme
 

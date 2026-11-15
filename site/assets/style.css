@@ -153,6 +153,11 @@ section, .prose { padding-left: var(--gutter); padding-right: var(--gutter); }
 .tags span { font-size: 12px; padding: 1px 7px; border: 1px solid var(--line); }
 .badge { display: inline-block; font: 700 10.5px/1 var(--pixel); letter-spacing: .06em; text-transform: uppercase; color: var(--good); border: 1px solid currentColor; padding: 4px 6px; white-space: nowrap; vertical-align: middle; }
 .empty { text-align: center; color: var(--muted); padding: 40px 0; }
+.all-link { text-align: center; margin: 34px 0 0; }
+.report { margin-top: 16px; font-size: 14px; }
+.report a { color: var(--muted); }
+.gallery-head .link-button { font-size: 15px; }
+h1.section-title { font-size: 14px; }
 
 .cta { max-width: var(--max); margin: 0 auto 72px; display: grid; grid-template-columns: minmax(0, 1.4fr) auto; gap: 32px; align-items: center; padding-top: 40px; padding-bottom: 40px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .cta h2 { font-size: clamp(26px, 3vw, 36px); }

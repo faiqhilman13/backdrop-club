@@ -49,7 +49,7 @@ ${jsonld ? `<script type="application/ld+json">${JSON.stringify(jsonld).replace(
 <header class="top">
   <a class="logo" href="${base}">${icon}<span>Backdrop Club</span></a>
   <nav class="nav" aria-label="Main">
-    <a href="${base}#gallery">Gallery</a>
+    <a href="${base}gallery/">Gallery</a>
     <a href="${base}make/">Make one</a>
     <a href="${base}submit/">Submit</a>
     <a href="${base}guide/">Guide</a>
@@ -117,10 +117,6 @@ ${scripts.map(s => `<script type="module" src="${base}assets/${s}"></script>`).j
 
   function home(themes, featured) {
     const lead = featured[0] ?? themes[0]
-    const tagCounts = new Map()
-    for (const t of themes) for (const tag of t.tags) tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1)
-    const chips = [...tagCounts].filter(([tag]) => tag !== 'dither').sort((a, b) => b[1] - a[1]).slice(0, 10)
-      .map(([tag, n]) => `<button class="chip" type="button" data-tag="${esc(tag)}">${esc(tag)} <span>${n}</span></button>`).join('')
     const body = `
 <section class="hero">
   <div class="hero-copy">
@@ -129,7 +125,7 @@ ${scripts.map(s => `<script type="module" src="${base}assets/${s}"></script>`).j
     <p class="lede">Pixel-art scenes that live at the bottom of the window, so your chat stays easy to read. Install once, then switch with one command.</p>
     <div class="hero-actions">
       <button class="cmd hero-cmd" type="button" data-copy="${esc(install)}"><code>${esc(install)}</code><span class="cmd-hint">Copy</span></button>
-      <div class="hero-links"><a class="button" href="#gallery">Browse the gallery</a><a class="button ghost" href="${base}make/">Make one from a photo</a></div>
+      <div class="hero-links"><a class="button" href="${base}gallery/">Browse the gallery</a><a class="button ghost" href="${base}make/">Make one from a photo</a></div>
       <p class="hero-agent">Using Codex, OpenCode or another agent? <a href="${base}agents/">Hand it one link</a> and it sets things up for you.</p>
     </div>
   </div>
@@ -146,17 +142,13 @@ ${scripts.map(s => `<script type="module" src="${base}assets/${s}"></script>`).j
 
 <section id="gallery" class="gallery" aria-labelledby="gallery-title">
   <div class="gallery-head">
-    <h2 id="gallery-title" class="section-title">The gallery</h2>
-    <div class="filters">
-      <label class="search"><span class="visually-hidden">Search themes</span><input type="search" placeholder="Search: tokyo, desert, neon…" autocomplete="off"></label>
-      <select class="sort" aria-label="Sort themes"><option value="new">Newest</option><option value="name">A to Z</option></select>
-    </div>
+    <h2 id="gallery-title" class="section-title">Newest</h2>
+    <a class="link-button" href="${base}gallery/">All ${themes.length} backdrops →</a>
   </div>
-  <div class="chips"><button class="chip on" type="button" data-tag="">All <span>${themes.length}</span></button>${chips}</div>
   <div class="grid">
-${themes.map(card).join('\n')}
+${themes.slice(0, 12).map(card).join('\n')}
   </div>
-  <p class="empty" hidden>No theme matches that yet. <a href="${base}make/">Make it?</a></p>
+  ${themes.length > 12 ? `<p class="all-link"><a class="button ghost" href="${base}gallery/">Browse all ${themes.length}</a></p>` : ''}
 </section>
 
 <section class="cta">
@@ -179,7 +171,7 @@ ${themes.map(card).join('\n')}
     const stats = [
       ['Author', `<a href="https://github.com/${esc(theme.author)}" rel="noopener">@${esc(theme.author)}</a>`],
       ['Added', esc(theme.added)],
-      ['Tags', theme.tags.map(t => `<a href="${base}?tag=${encodeURIComponent(t)}#gallery">${esc(t)}</a>`).join(', ')],
+      ['Tags', theme.tags.map(t => `<a href="${base}gallery/?tag=${encodeURIComponent(t)}">${esc(t)}</a>`).join(', ')],
       ['Licence', esc(theme.license)],
       ['Size', `${Math.round(theme.chars / 1000)} KB, vector`],
       ...(s ? [['Text contrast', `${s.light.contrast}:1 light · ${s.dark.contrast}:1 dark`]] : []),
@@ -187,7 +179,7 @@ ${themes.map(card).join('\n')}
     const shareText = `${theme.name}, a backdrop for the Claude app`
     const body = `
 <section class="theme">
-  <nav class="crumbs" aria-label="Breadcrumb"><a href="${base}#gallery">Gallery</a> / <span>${esc(theme.name)}</span></nav>
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="${base}gallery/">Gallery</a> / <span>${esc(theme.name)}</span></nav>
   <div class="theme-grid">
     <div class="theme-art">
       ${win(theme, { size: 'big', eager: true })}
@@ -212,6 +204,7 @@ ${themes.map(card).join('\n')}
         <button class="button ghost" type="button" data-copy="${esc(url(`t/${theme.id}/`))}" data-done="Link copied">Copy link</button>
       </div>
       <dl class="stats">${stats.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>
+      <p class="report"><a href="https://github.com/${repo}/issues/new?title=${encodeURIComponent(`Report: ${theme.id}`)}&amp;body=${encodeURIComponent(`Theme: ${url(`t/${theme.id}/`)}\n\nWhat is wrong with it?\n`)}" rel="noopener">Report this theme</a></p>
     </div>
   </div>
 </section>
@@ -356,6 +349,35 @@ ${more.length ? `<section class="gallery more"><h2 class="section-title">More ba
     })
   }
 
+  function galleryPage(themes) {
+    const tagCounts = new Map()
+    for (const t of themes) for (const tag of t.tags) tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1)
+    const chips = [...tagCounts].filter(([tag]) => tag !== 'dither').sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 14)
+      .map(([tag, n]) => `<button class="chip" type="button" data-tag="${esc(tag)}">${esc(tag)} <span>${n}</span></button>`).join('')
+    const body = `
+<section id="gallery" class="gallery" data-gallery aria-labelledby="gallery-title">
+  <div class="gallery-head">
+    <h1 id="gallery-title" class="section-title">All ${themes.length} backdrops</h1>
+    <div class="filters">
+      <label class="search"><span class="visually-hidden">Search themes</span><input type="search" placeholder="Search: tokyo, desert, neon…" autocomplete="off"></label>
+      <select class="sort" aria-label="Sort themes"><option value="new">Newest</option><option value="name">A to Z</option></select>
+    </div>
+  </div>
+  <div class="chips"><button class="chip on" type="button" data-tag="">All <span>${themes.length}</span></button>${chips}</div>
+  <div class="grid">
+${themes.map(card).join('\n')}
+  </div>
+  <p class="empty" hidden>No theme matches that yet. <a href="${base}make/">Make it?</a></p>
+  <p class="all-link"><button class="button ghost show-more" type="button" hidden>Show more</button></p>
+</section>`
+    return layout({
+      path: 'gallery/',
+      pageTitle: 'All backdrops for the Claude app',
+      description: `Every Backdrop Club theme: ${themes.length} free pixel-art backdrops for the Claude desktop app, each with a light and a dark look. Search by city, landscape or tag.`,
+      body,
+    })
+  }
+
   function agentsPage() {
     const npx = `npx -y github:${repo}`
     const prompt = `Read ${url('llms.txt')} then show me the Backdrop Club backdrops with their preview images, and set up the one I pick in my Claude app.`
@@ -402,8 +424,8 @@ ${more.length ? `<section class="gallery more"><h2 class="section-title">More ba
   <h2 id="api">The JSON API</h2>
   <p>Read-only, no key, served from GitHub Pages:</p>
   <ul>
-    <li><a href="${base}api/index.json"><code>api/index.json</code></a>: every theme's id, name, author, description and tags</li>
-    <li><code>api/themes/&lt;id&gt;.json</code>: one theme, with its SVG</li>
+    <li><a href="${base}api/v1/index.json"><code>api/v1/index.json</code></a>: every theme's id, name, author, description, tags and fingerprint, plus the ids taken down</li>
+    <li><code>api/v1/themes/&lt;id&gt;.json</code>: one theme, with its SVG</li>
     <li><code>t/&lt;id&gt;/backdrop.svg</code>, <code>light.svg</code>, <code>dark.svg</code>, and <code>og/&lt;id&gt;.png</code> for a preview</li>
   </ul>
 
@@ -422,5 +444,5 @@ ${more.length ? `<section class="gallery more"><h2 class="section-title">More ba
     return layout({ path: '404.html', pageTitle: 'Not found', description: 'This page is not here.', body: `<section class="prose"><h1>Nothing here.</h1><p>That page doesn't exist, or the theme was renamed. <a href="${base}#gallery">Back to the gallery</a>.</p></section>` })
   }
 
-  return { home, themePage, makePage, submitPage, guidePage, agentsPage, notFound, layout }
+  return { home, galleryPage, themePage, makePage, submitPage, guidePage, agentsPage, notFound, layout }
 }

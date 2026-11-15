@@ -1,0 +1,27 @@
+name: Mirror the repository
+# A second copy of the whole repository on another host, so the gallery never depends on one account.
+# Off until a maintainer adds a MIRROR_URL secret (see AGENTS.md, "A mirror").
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Push every branch and tag to the mirror
+        env:
+          MIRROR_URL: ${{ secrets.MIRROR_URL }}
+        run: |
+          if [ -z "$MIRROR_URL" ]; then
+            echo "No MIRROR_URL secret yet, so there is nothing to mirror to."
+            exit 0
+          fi
+          git push --force --prune "$MIRROR_URL" 'refs/remotes/origin/*:refs/heads/*' 'refs/tags/*:refs/tags/*'

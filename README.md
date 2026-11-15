@@ -74,6 +74,8 @@ Themes are data, not code. Each file is checked against an allow-list of SVG dra
 | `tools/submission.mjs` | The bot that turns submission issues into pull requests |
 | `site/` | Page styles and scripts, including the photo maker |
 | `art/` | The Python kit that drew the starter themes, and their sources ([how to draw one](art/README.md)) |
+| `site/revoked.json` | Themes taken down; installed loaders drop them too |
+| `.github/workflows/` | Deploy, PR checks, the submission bot, and an optional mirror to a second host |
 
 No dependencies: Node 22 and Chrome. `node tools/build.mjs --render && node tools/serve.mjs` serves it at http://127.0.0.1:4173/backdrop-club/.
 

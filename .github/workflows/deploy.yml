@@ -18,6 +18,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # Scores and share images are cached by each theme's fingerprint, so a build renders only what changed.
+      - uses: actions/cache@v4
+        with:
+          path: .cache/render
+          key: render-${{ github.run_id }}
+          restore-keys: render-
       - name: Check every theme, score it, and build the site
         run: node tools/build.mjs --render
       - uses: actions/configure-pages@v5

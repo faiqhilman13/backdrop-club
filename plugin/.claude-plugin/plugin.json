@@ -1,6 +1,6 @@
 {
   "name": "backdrop-club",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Backdrops for the Claude desktop app from the Backdrop Club gallery: /backdrop <name>, or ask Claude for one; picks made with the backdrop-club CLI show up within seconds. Every theme has a light and a dark look and keeps the chat readable",
   "license": "MIT",
   "homepage": "https://faiqhilman13.github.io/backdrop-club/",

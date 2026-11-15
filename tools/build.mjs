@@ -7,6 +7,7 @@
 //
 // A theme is a folder themes/<id>/ holding theme.json and backdrop.svg. Nothing else is read.
 
+import crypto from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -50,6 +51,7 @@ export function loadThemes(dir = path.join(ROOT, 'themes')) {
       added: details.added ?? new Date().toISOString().slice(0, 10),
       license: details.license ?? 'CC-BY-4.0',
       svg: result.svg,
+      hash: crypto.createHash('sha256').update(result.svg).digest('hex').slice(0, 16),
       chars: result.svg.length,
       hasDarkMode: result.stats.hasDarkMode,
       warnings: result.warnings,
@@ -106,12 +108,24 @@ const STARTER = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 160" w
 
 const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="crispEdges"><style>rect{fill:#d9466f}.g{fill:#2f6f68}@media (prefers-color-scheme:dark){rect{fill:#ff8fb1}.g{fill:#6ee7b7}}</style><rect x="5" y="3" width="6" height="1"/><rect x="4" y="4" width="8" height="1"/><rect x="3" y="5" width="10" height="2"/><rect x="3" y="8" width="10" height="1"/><rect x="4" y="10" width="8" height="1"/><rect class="g" x="0" y="12" width="16" height="2"/><rect class="g" x="2" y="15" width="12" height="1"/></svg>`
 
+/** Themes taken down: their ids, and why. Listed in site/revoked.json. */
+function readRevoked() {
+  try {
+    const list = JSON.parse(fs.readFileSync(path.join(ROOT, 'site/revoked.json'), 'utf8'))
+    return Array.isArray(list) ? list.filter(r => typeof r?.id === 'string') : []
+  } catch {
+    return []
+  }
+}
+
 async function main() {
   const loaded = loadThemes()
   const isMine = text => ONLY.length === 0 || ONLY.some(id => text.startsWith(`themes/${id}:`))
   const problems = loaded.problems.filter(isMine)
   const themes = ONLY.length > 0 ? loaded.themes.filter(t => ONLY.includes(t.id)) : loaded.themes
   for (const id of ONLY) if (!themes.some(t => t.id === id) && !problems.some(p => p.startsWith(`themes/${id}:`))) problems.push(`themes/${id}: not found`)
+  const revoked = readRevoked()
+  for (const theme of loaded.themes) if (revoked.some(r => r.id === theme.id)) problems.push(`themes/${theme.id}: this id was taken down (site/revoked.json); use another id`)
   for (const theme of themes) for (const w of theme.warnings) console.log(`note: themes/${theme.id}: ${w}`)
   if (problems.length > 0) {
     console.error(`\n${problems.length} problem${problems.length === 1 ? '' : 's'}:\n${problems.map(p => `  - ${p}`).join('\n')}`)
@@ -134,13 +148,15 @@ async function main() {
     write(path.join(dir, 'backdrop.svg'), theme.svg)
     write(path.join(dir, 'light.svg'), forceScheme(theme.svg, 'light'))
     write(path.join(dir, 'dark.svg'), forceScheme(theme.svg, 'dark'))
-    write(path.join(DIST, 'api/themes', `${theme.id}.json`), JSON.stringify({ id: theme.id, name: theme.name, author: theme.author, description: theme.description, tags: theme.tags, license: theme.license, svg: theme.svg }))
+    const record = JSON.stringify({ id: theme.id, name: theme.name, author: theme.author, description: theme.description, tags: theme.tags, license: theme.license, hash: theme.hash, svg: theme.svg })
+    write(path.join(DIST, 'api/v1/themes', `${theme.id}.json`), record)
+    write(path.join(DIST, 'api/themes', `${theme.id}.json`), record)
   }
 
   // Scores and share images come from a real browser.
   if (flags.has('--render')) {
     const { render } = await import('./render.mjs')
-    const result = await render(themes, { dist: DIST, base: config.base, og: !flags.has('--check') })
+    const result = await render(themes, { dist: DIST, base: config.base, og: !flags.has('--check'), cacheDir: path.join(ROOT, '.cache', 'render') })
     if (result) {
       for (const theme of themes) {
         theme.score = result.scores[theme.id]
@@ -161,6 +177,7 @@ async function main() {
   const p = pages(config)
 
   write(path.join(DIST, 'index.html'), p.home(themes, featured.slice(0, 8)))
+  write(path.join(DIST, 'gallery/index.html'), p.galleryPage(themes))
   themes.forEach((theme, i) => {
     const more = [...themes.slice(i + 1), ...themes.slice(0, i)].slice(0, 3)
     write(path.join(DIST, 't', theme.id, 'index.html'), p.themePage(theme, more))
@@ -175,19 +192,19 @@ async function main() {
   write(path.join(DIST, '.nojekyll'), '')
 
   const updated = new Date().toISOString()
-  write(path.join(DIST, 'api/index.json'), JSON.stringify({
-    updated,
-    count: themes.length,
-    themes: themes.map(t => ({ id: t.id, name: t.name, author: t.author, description: t.description, tags: t.tags, added: t.added })),
-  }))
+  const listed = themes.map(t => ({ id: t.id, name: t.name, author: t.author, description: t.description, tags: t.tags, added: t.added, hash: t.hash }))
+  write(path.join(DIST, 'api/index.json'), JSON.stringify({ updated, count: themes.length, themes: listed }))
+  // v1 also names the themes taken down, so loaders drop them from machines that kept a copy.
+  write(path.join(DIST, 'api/v1/index.json'), JSON.stringify({ version: 1, updated, count: themes.length, themes: listed, revoked: revoked.map(r => r.id) }))
 
   const site = `${config.origin}${config.base}`
-  const urls = ['', 'make/', 'submit/', 'guide/', 'agents/', 'llms.txt', ...themes.map(t => `t/${t.id}/`)]
+  const urls = ['', 'gallery/', 'make/', 'submit/', 'guide/', 'agents/', 'llms.txt', ...themes.map(t => `t/${t.id}/`)]
   write(path.join(DIST, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(u => `  <url><loc>${site}${u}</loc></url>`).join('\n')}\n</urlset>\n`)
   write(path.join(DIST, 'robots.txt'), `User-agent: *\nAllow: /\nSitemap: ${site}sitemap.xml\n`)
 
   // The loader carries the rulebook and one scene, so it works offline from the first start.
   sync(path.join(ROOT, 'plugin/hooks/check.js'), `// Copied from lib/check.mjs by tools/build.mjs. Edit that file, not this one.\n${fs.readFileSync(path.join(ROOT, 'lib/check.mjs'), 'utf8')}`)
+  sync(path.join(ROOT, 'plugin/hooks/site.js'), `// Written by tools/build.mjs from site/config.json: where the loader fetches themes.\nexport const SITE = ${JSON.stringify(`${config.origin}${config.base}`)}\n`)
   const fallback = byId.get(config.defaultTheme) ?? themes[0]
   sync(path.join(ROOT, 'plugin/hooks/default.js'), `// Written by tools/build.mjs from themes/${fallback.id}. The scene shown before any other is picked.\nexport const DEFAULT = ${JSON.stringify({ id: fallback.id, name: fallback.name, author: fallback.author, svg: fallback.svg })}\n`)
 

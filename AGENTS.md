@@ -49,6 +49,15 @@ No package dependencies. Node 22 for the tools, Chrome or Chromium for `--render
 - Bump `plugin/.claude-plugin/plugin.json`'s version when the loader changes, so installs update.
 - Pushing to `main` deploys the site (`.github/workflows/deploy.yml`).
 
+## Maintaining the gallery
+
+- **Taking a theme down:** delete its `themes/<id>/` folder and add `{ "id": "<id>", "reason": "...", "date": "YYYY-MM-DD" }` to `site/revoked.json`, then push. The id can't be reused, the theme leaves the site, and installed loaders drop it within a few hours (they check `api/v1/index.json`'s `revoked` list).
+- **Updating a theme:** change its `backdrop.svg` and push. Its fingerprint (`hash` in the API) changes, and loaders that kept the old copy fetch the new one within a few hours.
+- **Builds:** readability scores and share images are cached under `.cache/render/`, keyed by each theme's fingerprint (and by the code that made them), locally and in CI. A push renders only new or changed themes. Delete `.cache/` to start over.
+- **API:** clients use `api/v1/`. Keep the unversioned `api/` files: loaders older than 0.3.0 read them. Change `v1`'s shape only by adding fields; anything else is a `v2`.
+- **A mirror:** `.github/workflows/mirror.yml` pushes every branch and tag to a second host once a `MIRROR_URL` secret exists. Make an empty repository on Codeberg or GitLab, create an access token with write access, then run `gh secret set MIRROR_URL -R faiqhilman13/backdrop-club` and paste `https://<user>:<token>@codeberg.org/<user>/backdrop-club.git`.
+- **A custom domain:** set `origin` and `base` in `site/config.json` (e.g. `https://example.club` and `/`), add the domain in the repository's Pages settings, run `node tools/build.mjs`, bump the loader's version and push. GitHub redirects the old `github.io` address to the new one, so loaders installed before the move keep working.
+
 ## Don't
 
 - Put anything but drawing elements in a theme (the rulebook refuses scripts, animation, event handlers, external links and fonts).

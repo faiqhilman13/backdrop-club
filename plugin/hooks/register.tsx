@@ -1,9 +1,13 @@
 import type { EngineInterface, Register } from 'claude-code'
 import { check } from './check.js'
 import { DEFAULT } from './default.js'
+import { SITE } from './site.js'
 
-// The gallery this loader draws from. Every theme there passed the same check this mod runs.
-const SITE = 'https://faiqhilman13.github.io/backdrop-club/'
+// The gallery's API. Every theme there passed the same check this mod runs.
+const API = `${SITE}api/v1/`
+// How often a session asks the gallery whether the picked theme changed or was taken down.
+const CHECK_EVERY_MS = 6 * 60 * 60 * 1000
+const CHECKED = 'checkedAt'
 // The backdrop's name to the app: one name, whichever theme is showing.
 const NAME = 'backdrop-club'
 const COMMAND = 'backdrop'
@@ -17,8 +21,9 @@ const POLL_MS = 3000
 // The model's two tools, as the engine names them (a pattern, so the matcher types check).
 const TOOLS = { find: /^mcp__backdrop-club__find_backdrops$/, set: /^mcp__backdrop-club__set_backdrop$/ }
 
-type Theme = { id: string; name: string; author: string; svg: string }
-type Listed = { id: string; name: string; author: string; description?: string; tags?: string[] }
+type Theme = { id: string; name: string; author: string; svg: string; hash?: string }
+type Listed = { id: string; name: string; author: string; description?: string; tags?: string[]; hash?: string }
+type Gallery = { themes: Listed[]; revoked: string[] }
 
 let shown: Theme = DEFAULT
 let isOff = false
@@ -65,7 +70,7 @@ async function readPick($: EngineInterface) {
       const pick = JSON.parse(await $.fs.read(file)) as Partial<Theme> & { off?: boolean }
       found = true
       off = pick.off === true
-      if (isTheme(pick) && check(pick.svg).ok) next = { id: pick.id, name: pick.name, author: pick.author, svg: check(pick.svg).svg }
+      if (isTheme(pick) && check(pick.svg).ok) next = { id: pick.id, name: pick.name, author: pick.author, svg: check(pick.svg).svg, hash: typeof pick.hash === 'string' ? pick.hash : undefined }
     } catch {
       // No file yet, or one this mod can't read: the store decides.
     }
@@ -146,15 +151,21 @@ async function follow($: EngineInterface) {
 }
 
 async function fetchJson($: EngineInterface, path: string): Promise<unknown> {
-  const response = await $.http.fetch(`${SITE}${path}`)
+  const response = await $.http.fetch(`${API}${path}`)
   if (response.status === 404) return undefined
   if (!response.ok) throw new Error(`the gallery answered ${response.status}`)
   return JSON.parse(response.text)
 }
 
+async function catalog($: EngineInterface): Promise<Gallery> {
+  const data = (await fetchJson($, 'index.json')) as { themes?: unknown; revoked?: unknown } | undefined
+  const themes = Array.isArray(data?.themes) ? (data.themes as Listed[]).filter(t => typeof t?.id === 'string' && typeof t.name === 'string') : []
+  const revoked = Array.isArray(data?.revoked) ? (data.revoked as unknown[]).filter((id): id is string => typeof id === 'string') : []
+  return { themes, revoked }
+}
+
 async function gallery($: EngineInterface): Promise<Listed[]> {
-  const data = (await fetchJson($, 'api/index.json')) as { themes?: unknown } | undefined
-  return Array.isArray(data?.themes) ? (data.themes as Listed[]).filter(t => typeof t?.id === 'string' && typeof t.name === 'string') : []
+  return (await catalog($)).themes
 }
 
 function findIn(list: Listed[], asked: string) {
@@ -167,12 +178,12 @@ function findIn(list: Listed[], asked: string) {
 
 /** Fetches a theme, checks it, and shows it. Answers what to tell the person. */
 async function use($: EngineInterface, listed: Listed) {
-  const data = await fetchJson($, `api/themes/${encodeURIComponent(listed.id)}.json`)
+  const data = await fetchJson($, `themes/${encodeURIComponent(listed.id)}.json`)
   if (!isTheme(data)) return `${listed.name} could not be fetched from the gallery. The backdrop stays as it was.`
   const result = check(data.svg)
   if (!result.ok) return `${listed.name} was refused: ${result.errors[0]} The backdrop stays as it was.`
   const wasOff = isOff
-  shown = { id: data.id, name: data.name, author: data.author, svg: result.svg }
+  shown = { id: data.id, name: data.name, author: data.author, svg: result.svg, hash: typeof (data as { hash?: unknown }).hash === 'string' ? (data as { hash: string }).hash : undefined }
   isOff = false
   await savePick($)
   await apply($, wasOff)
@@ -224,6 +235,34 @@ async function pick($: EngineInterface, asked: string) {
   }
 }
 
+/**
+ * Keeps the picked theme current: fetches it again when its author updated it, and drops it when
+ * the gallery took it down. At most every few hours, and never in the way of the session starting.
+ */
+async function checkForUpdates($: EngineInterface) {
+  if (shown.id === DEFAULT.id && shown.svg === DEFAULT.svg) return
+  try {
+    const now = await $.clock.now()
+    const last = await $.store.get(CHECKED)
+    if (typeof last === 'number' && now - last < CHECK_EVERY_MS) return
+    await $.store.set(CHECKED, now)
+    const { themes, revoked } = await catalog($)
+    if (revoked.includes(shown.id)) {
+      const gone = shown.name
+      const wasOff = isOff
+      shown = DEFAULT
+      await savePick($)
+      await apply($, wasOff)
+      $.ui.toast(`${gone} was taken down from the gallery, so the backdrop is back to ${DEFAULT.name}.`)
+      return
+    }
+    const listed = themes.find(t => t.id === shown.id)
+    if (listed?.hash && listed.hash !== shown.hash) await use($, listed)
+  } catch {
+    // Offline or the gallery is down: the copy on this machine stays.
+  }
+}
+
 function describe(t: Listed) {
   const tags = (t.tags ?? []).filter(x => x !== 'dither')
   return `${t.id}: ${t.name} by @${t.author}${tags.length ? ` [${tags.join(', ')}]` : ''}${t.description ? ` - ${t.description}` : ''} (preview ${SITE}og/${t.id}.png)`
@@ -263,6 +302,7 @@ export const register: Register = on => {
     }
     poller?.cancel()
     poller = $.clock.every(POLL_MS, () => { void follow($) })
+    $.clock.after(1500, () => { void checkForUpdates($) })
     return next(e)
   })
 

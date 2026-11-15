@@ -72,15 +72,17 @@ function engine(on: On, kept: Record<string, unknown> = {}, site: Record<string,
 }
 
 const INDEX = {
-  'api/index.json': {
+  'api/v1/index.json': {
+    version: 1,
     themes: [
-      { id: 'tokyo', name: 'Tokyo', author: 'someone', tags: ['city'] },
-      { id: 'island-bay', name: 'Island bay', author: 'someone', tags: ['sea'] },
-      { id: 'broken', name: 'Broken', author: 'someone', tags: [] },
+      { id: 'tokyo', name: 'Tokyo', author: 'someone', tags: ['city'], hash: 'tokyo-1' },
+      { id: 'island-bay', name: 'Island bay', author: 'someone', tags: ['sea'], hash: 'bay-1' },
+      { id: 'broken', name: 'Broken', author: 'someone', tags: [], hash: 'broken-1' },
     ],
+    revoked: [],
   },
-  'api/themes/tokyo.json': { id: 'tokyo', name: 'Tokyo', author: 'someone', svg: TOKYO_SVG },
-  'api/themes/broken.json': { id: 'broken', name: 'Broken', author: 'someone', svg: BAD_SVG },
+  'api/v1/themes/tokyo.json': { id: 'tokyo', name: 'Tokyo', author: 'someone', hash: 'tokyo-1', svg: TOKYO_SVG },
+  'api/v1/themes/broken.json': { id: 'broken', name: 'Broken', author: 'someone', hash: 'broken-1', svg: BAD_SVG },
 }
 
 async function drawn($: Parameters<Extract<Parameters<typeof test>[1], (...args: never[]) => unknown>>[0]) {
@@ -107,7 +109,7 @@ test('a theme picked by name is fetched, checked, drawn and kept for the next se
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
   const reply = await $.command.run({ command: 'backdrop', args: 'TOKYO', ...RUN })
   expect(reply.text).toContain('Now showing Tokyo by @someone')
-  expect(fetched).toEqual([`${SITE}api/index.json`, `${SITE}api/themes/tokyo.json`])
+  expect(fetched).toEqual([`${SITE}api/v1/index.json`, `${SITE}api/v1/themes/tokyo.json`])
   expect(await drawn($)).toBe(TOKYO_SVG)
   expect((kept.theme as { id: string }).id).toBe('tokyo')
 })
@@ -196,4 +198,45 @@ test('Claude can find backdrops and set the one the person picks', async ($, on)
   expect(String(set.result)).toContain('Now showing Tokyo')
   expect(await drawn($)).toBe(TOKYO_SVG)
   expect(JSON.parse(files[PICK]!).id).toBe('tokyo')
+})
+
+const TOKYO_V2 = TOKYO_SVG.replace('#a8cac4', '#b5d3cd')
+
+test('when an author updates a theme, machines that kept the old copy get the new one', async ($, on) => {
+  const site = {
+    ...INDEX,
+    'api/v1/index.json': { version: 1, themes: [{ id: 'tokyo', name: 'Tokyo', author: 'someone', tags: ['city'], hash: 'tokyo-2' }], revoked: [] },
+    'api/v1/themes/tokyo.json': { id: 'tokyo', name: 'Tokyo', author: 'someone', hash: 'tokyo-2', svg: TOKYO_V2 },
+  }
+  const { clock, files, cli } = engine(on, {}, site)
+  cli({ id: 'tokyo', name: 'Tokyo', author: 'someone', svg: TOKYO_SVG, hash: 'tokyo-1', off: false })
+
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  expect(await drawn($)).toBe(TOKYO_SVG)
+  await clock.advance(1600)
+  expect(await drawn($)).toBe(TOKYO_V2)
+  expect(JSON.parse(files[PICK]!).hash).toBe('tokyo-2')
+})
+
+test('a theme taken down from the gallery leaves the machines that kept a copy', async ($, on) => {
+  const site = { ...INDEX, 'api/v1/index.json': { version: 1, themes: [], revoked: ['tokyo'] } }
+  const { clock, cli } = engine(on, {}, site)
+  cli({ id: 'tokyo', name: 'Tokyo', author: 'someone', svg: TOKYO_SVG, hash: 'tokyo-1', off: false })
+
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  expect(await drawn($)).toBe(TOKYO_SVG)
+  await clock.advance(1600)
+  expect(await drawn($)).toBe(DEFAULT.svg)
+})
+
+test('the gallery is asked at most every few hours, and an offline machine keeps its copy', async ($, on) => {
+  const site: Record<string, unknown> = { ...INDEX, down: true }
+  const { clock, cli, fetched } = engine(on, { checkedAt: 0 }, site)
+  cli({ id: 'tokyo', name: 'Tokyo', author: 'someone', svg: TOKYO_SVG, hash: 'tokyo-1', off: false })
+
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  await clock.advance(1600)
+  // Checked moments ago (time 0 in this test's clock): no request goes out.
+  expect(fetched.length).toBe(0)
+  expect(await drawn($)).toBe(TOKYO_SVG)
 })

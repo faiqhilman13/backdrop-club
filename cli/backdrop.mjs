@@ -61,9 +61,11 @@ async function getJson(rel) {
   return response.json()
 }
 
+let revoked = []
 async function gallery() {
-  const index = await getJson('api/index.json')
+  const index = await getJson('api/v1/index.json')
   if (!index || !Array.isArray(index.themes)) fail('The gallery sent no theme list.')
+  revoked = Array.isArray(index.revoked) ? index.revoked : []
   return index.themes.map(t => ({
     ...t,
     page: `${SITE}t/${t.id}/`,
@@ -208,11 +210,12 @@ async function main() {
     const others = list.filter(x => x.id !== current?.id)
     const t = asked.toLowerCase() === 'random' ? (others[Math.floor(Math.random() * others.length)] ?? list[0]) : find(list, asked)
     if (!t) fail(`No theme called "${asked}". Try ${NPX} list`)
-    const data = await getJson(`api/themes/${encodeURIComponent(t.id)}.json`)
+    if (revoked.includes(t.id)) fail(`${t.name} was taken down from the gallery.`)
+    const data = await getJson(`api/v1/themes/${encodeURIComponent(t.id)}.json`)
     if (!data?.svg) fail(`${t.name} could not be fetched.`)
     const result = check(data.svg)
     if (!result.ok) fail(`${t.name} was refused by the rules: ${result.errors[0]}`)
-    const file = writePick({ id: data.id, name: data.name, author: data.author, svg: result.svg, off: false })
+    const file = writePick({ id: data.id, name: data.name, author: data.author, svg: result.svg, hash: data.hash, off: false })
     const installed = loaderInstalled()
     const note = installed ? 'An open Claude Code session switches within a few seconds; new sessions start with it.' : `The loader isn't installed in Claude Code yet. Run: ${NPX} setup`
     return out(`Picked ${data.name} by @${data.author}. ${note}`, { ok: true, theme: { ...t, svg: undefined }, file, loaderInstalled: installed })
@@ -234,7 +237,7 @@ async function main() {
     const list = await gallery()
     const t = find(list, rest.join(' '))
     if (!t) fail(`No theme called "${rest.join(' ')}". Try ${NPX} list`)
-    const data = await getJson(`api/themes/${encodeURIComponent(t.id)}.json`)
+    const data = await getJson(`api/v1/themes/${encodeURIComponent(t.id)}.json`)
     const result = check(data?.svg ?? '')
     if (!result.ok) fail(`${t.name} could not be fetched cleanly.`)
     const dir = path.resolve(flags.out ?? '.')

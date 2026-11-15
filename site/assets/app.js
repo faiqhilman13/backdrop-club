@@ -68,49 +68,58 @@ if (cycle) {
   cycle.addEventListener('click', () => show(at + 1))
 }
 
-// The gallery: search, tag chips, sort, and ?tag= links from theme pages.
-const grid = document.querySelector('.gallery:not(.more) .grid')
-if (grid) {
+// The gallery page: search, tag chips, sort, ?tag= links from theme pages, and a page at a time.
+const gallery = document.querySelector('[data-gallery]')
+if (gallery) {
+  const PAGE = 24
+  const grid = gallery.querySelector('.grid')
   const cards = [...grid.querySelectorAll('.card')]
-  const search = document.querySelector('.search input')
-  const sort = document.querySelector('.sort')
-  const empty = document.querySelector('.empty')
-  const chips = [...document.querySelectorAll('.chip')]
+  const search = gallery.querySelector('.search input')
+  const sort = gallery.querySelector('.sort')
+  const empty = gallery.querySelector('.empty')
+  const more = gallery.querySelector('.show-more')
+  const chips = [...gallery.querySelectorAll('.chip')]
   let tag = new URLSearchParams(location.search).get('tag') ?? ''
+  let limit = PAGE
 
   const apply = () => {
     const words = (search.value ?? '').toLowerCase().split(/\s+/).filter(Boolean)
-    let shown = 0
-    for (const card of cards) {
+    let matched = 0
+    for (const card of grid.querySelectorAll('.card')) {
       const hay = `${card.dataset.name} ${card.dataset.tags} ${card.dataset.author} ${card.dataset.id}`
       const ok = (!tag || card.dataset.tags.split(' ').includes(tag)) && words.every(w => hay.includes(w))
-      card.hidden = !ok
-      if (ok) shown += 1
+      if (ok) matched += 1
+      card.hidden = !ok || matched > limit
     }
-    empty.hidden = shown > 0
+    empty.hidden = matched > 0
+    more.hidden = matched <= limit
+    more.textContent = `Show more (${matched - Math.min(matched, limit)} left)`
     for (const chip of chips) chip.classList.toggle('on', chip.dataset.tag === tag)
   }
+  const reset = () => { limit = PAGE; apply() }
   const order = () => {
     const by = sort.value
     const sorted = [...cards].sort((a, b) => by === 'name' ? a.dataset.name.localeCompare(b.dataset.name) : b.dataset.added.localeCompare(a.dataset.added) || a.dataset.name.localeCompare(b.dataset.name))
     grid.append(...sorted)
+    reset()
   }
-  search.addEventListener('input', apply)
+  search.addEventListener('input', reset)
   sort.addEventListener('change', order)
+  more.addEventListener('click', () => { limit += PAGE; apply() })
   for (const chip of chips) chip.addEventListener('click', () => {
     tag = chip.dataset.tag === tag ? '' : chip.dataset.tag
     const url = new URL(location.href)
     if (tag) url.searchParams.set('tag', tag)
     else url.searchParams.delete('tag')
     history.replaceState(null, '', url)
-    apply()
+    reset()
   })
   if (tag && !chips.some(c => c.dataset.tag === tag)) {
     const extra = Object.assign(document.createElement('button'), { className: 'chip', type: 'button', textContent: tag })
     extra.dataset.tag = tag
     chips.push(extra)
-    document.querySelector('.chips').append(extra)
-    extra.addEventListener('click', () => { tag = ''; apply() })
+    gallery.querySelector('.chips').append(extra)
+    extra.addEventListener('click', () => { tag = ''; reset() })
   }
   apply()
 }
